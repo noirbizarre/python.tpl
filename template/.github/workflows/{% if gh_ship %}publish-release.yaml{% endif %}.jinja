@@ -1,0 +1,128 @@
+{%- raw %}name: 📦 Publish Release
+
+# Dispatched by `gh ship release` once it has tagged the merge commit and
+# drafted the GitHub Release. Its job is to attach everything the release
+# consists of; gh-ship makes the release public afterwards, so a release is
+# never visible without its artifacts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag being released
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Build exactly what is being released, not a branch tip that may
+          # have moved since.
+          ref: ${{ inputs.tag }}
+{%- endraw %}
+{%- if is_pdm %}
+          # Full history and tags, because on this stack the version *is* the
+          # tag: pdm-backend reads it from the checkout, and a shallow one
+          # would produce a distribution numbered 0.0.0.
+          fetch-depth: 0
+          fetch-tags: true
+{%- endif %}
+{%- raw %}
+
+      - uses: jdx/mise-action@v4
+        with:
+          # Keep in sync with PINNED_MISE_VERSION in ci.yaml.
+          version: 2026.7.18
+          cache: true
+{%- endraw %}
+
+      - name: Build the distributions
+{%- if is_pdm %}
+        run: pdm build
+{%- else %}
+        run: uv build
+{%- endif %}
+
+      # Built once and downloaded by both jobs below, so the file uploaded to
+      # the GitHub Release and the file uploaded to PyPI are byte-identical.
+      # Building twice would make that a matter of luck.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+{%- raw %}
+
+  assets:
+    name: 🚀 Attach the assets
+    needs: build
+    runs-on: ubuntu-latest
+    # This is the deployment. `url:` registers it in the repository's
+    # deployment list and links straight to what shipped.
+    environment:
+      name: release
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Upload to the draft release
+        run: gh release upload "${{ inputs.tag }}" dist/* --clobber
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+{%- endraw %}
+{%- if pypi %}
+
+  pypi:
+    name: 🐍 PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/project/{{ distribution }}/{% raw %}${{ inputs.tag }}{% endraw %}/
+    permissions:
+      # Trusted Publishing. The action below exchanges this job's OIDC token
+      # for a short-lived PyPI credential: nothing is stored, and a fork cannot
+      # obtain one.
+      #
+      # Configure the publisher on PyPI first — repository
+      # {{ owner }}/{{ distribution }}, workflow filename `publish-release.yaml`,
+      # environment `release`. The workflow filename is part of the trust
+      # policy, so renaming this file breaks publishing until PyPI is updated.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+{%- endif %}

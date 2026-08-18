@@ -1,0 +1,60 @@
+# Byte-compiled and cached
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ty_cache/
+
+# Distribution and build output
+/build/
+/dist/
+*.egg-info/
+
+# Coverage and test-report output
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+junit.xml
+/reports/
+
+# Environments
+.venv/
+{% if is_pdm %}
+# Written into the built distribution by pdm-backend, never into the worktree.
+# See [tool.pdm.version] in pyproject.toml.
+src/{{ package }}/VERSION
+.pdm-python
+.pdm-build/
+{% endif %}
+# Zensical documentation build output
+site/
+
+# The gh-ship release artifact, written by the prepare-release workflow.
+/ship.release.json
+
+# --- mise ---------------------------------------------------------------
+#
+# A common global gitignore (`~/.config/git/ignore`) excludes `mise.toml`,
+# `mise.*.toml` and `mise.lock`, on the assumption that mise configuration is a
+# personal thing. Here it is not: `mise.toml` defines the project's toolchain
+# and `mise.lock` pins every tool to an exact build, which is what makes
+# `mise run ci` locally and the CI workflow run the same versions. Both are
+# re-included explicitly so the repository does not depend on how any one
+# developer has configured Git.
+#
+# A repository `.gitignore` takes precedence over `core.excludesFile`, so these
+# negations do the job.
+!mise.toml
+!mise.lock
+
+# Genuinely local, and genuinely per-developer: overrides and secrets that must
+# not be shared.
+mise.local.toml
+{% if stack == 'pdm-uv' %}
+# `pdm.toml` is normally local configuration and normally ignored. Here it
+# carries `use_uv = true`, which is a property of the project rather than of
+# the developer, so it is committed. See the file itself.
+!pdm.toml
+{% endif %}

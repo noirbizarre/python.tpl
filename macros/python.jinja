@@ -1,0 +1,33 @@
+{#
+  The Python version vocabulary.
+
+  `python_versions` is a `[computed]` list; these render it into the three
+  shapes files need. A child template that adds a workflow with its own matrix
+  calls `matrix_list()` rather than looping again — a second loop is a second
+  chance to filter it differently.
+
+  Usage:
+
+      {% import "macros/python.jinja" as py %}
+      python: [{{ py.matrix_list() }}]
+#}
+
+{#- The supported versions as a YAML/TOML inline list body, without brackets. -#}
+{%- macro matrix_list() -%}
+{%- for version in python_versions %}"{{ version }}"{% if not loop.last %}, {% endif %}{% endfor -%}
+{%- endmacro -%}
+
+{#-
+  The `Programming Language :: Python :: X.Y` trove classifiers, one per line,
+  each indented by `indent` spaces and terminated with a comma.
+-#}
+{%- macro classifiers(indent=4) -%}
+{%- for version in python_versions %}
+{{ " " * indent }}"Programming Language :: Python :: {{ version }}",
+{%- endfor -%}
+{%- endmacro -%}
+
+{#- The PEP 440 specifier for `requires-python`. -#}
+{%- macro requires_python() -%}
+>={{ python_min }}
+{%- endmacro -%}

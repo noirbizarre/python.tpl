@@ -1,0 +1,149 @@
+{%- import "macros/commands.jinja" as cmd -%}
+# prek's native TOML configuration. There is deliberately no
+# `.pre-commit-config.yaml`: two configuration formats for one hook runner is
+# one too many, and the YAML one would be the stale copy.
+#
+# Almost every hook here is `builtin` or `local`, on purpose. A `repo` with a
+# `rev` is a version pin that duplicates a floor already stated in pyproject's
+# `[dependency-groups]`, and the two drift — the previous generation of this
+# template shipped a ruff hook three minor versions behind its own dependency
+# floor for months, so the hook and CI disagreed about what "lint" meant. A
+# `local` hook running the ruff that `{% if is_pdm %}pdm install{% else %}uv sync{% endif %}` put in the
+# environment cannot disagree with itself.
+
+default_install_hook_types = ["pre-commit", "commit-msg"]
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "check-added-large-files" },
+  { id = "check-merge-conflict" },
+  { id = "check-toml" },
+  { id = "check-yaml" },
+  { id = "check-json" },
+  { id = "check-ast" },
+  { id = "debug-statements" },
+  # Python files are excluded because `ruff format` below already owns their
+  # final newline, and two hooks rewriting the same bytes is how a pre-commit
+  # run ends up needing a second pre-commit run.
+  { id = "end-of-file-fixer", exclude_types = ["python"] },
+  { id = "mixed-line-ending" },
+  # Fixtures and snapshots record output verbatim, trailing whitespace
+  # included. Trimming it here would fail the tests that assert it.
+  { id = "trailing-whitespace", exclude = "^tests/(fixtures|snapshots)/" },
+]
+
+# The only pinned external repository. These validate files whose shape is
+# otherwise not checked until something fails in CI, and they are schemas
+# rather than a tool this project also depends on — so there is no floor for
+# the `rev` to drift from.
+[[repos]]
+repo = "https://github.com/python-jsonschema/check-jsonschema"
+rev = "0.33.3"
+hooks = [
+  { id = "check-github-workflows" },
+  { id = "check-dependabot" },
+]
+
+[[repos]]
+repo = "local"
+
+# Suppressions are configured in .github/actionlint.yml, not here: the same
+# file serves `mise run lint:actions`, so the two cannot disagree.
+[[repos.hooks]]
+id = "actionlint"
+name = "actionlint"
+language = "system"
+entry = "actionlint"
+files = "^\\.github/workflows/.*\\.ya?ml$"
+
+[[repos.hooks]]
+id = "typos"
+name = "typos"
+language = "system"
+entry = "typos"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "ruff-check"
+name = "ruff check"
+language = "system"
+entry = "ruff check --fix --force-exclude"
+types = ["python"]
+
+[[repos.hooks]]
+id = "ruff-format"
+name = "ruff format"
+language = "system"
+entry = "ruff format --force-exclude"
+types = ["python"]
+
+# The type checker runs over the whole project rather than over the staged
+# files: a type error is rarely in the file that introduced it, and checking
+# one file in isolation reports errors that do not exist and misses the ones
+# that do.
+[[repos.hooks]]
+id = "ty"
+name = "ty check"
+language = "system"
+{%- if is_pdm %}
+entry = "pdm run typecheck"
+{%- else %}
+entry = "uv run --group lint ty check src tests"
+{%- endif %}
+types = ["python"]
+pass_filenames = false
+
+# The lockfile has to match pyproject, and the check is the stack's own.
+[[repos.hooks]]
+{%- if is_pdm %}
+id = "pdm-lock-check"
+name = "pdm lock --check"
+language = "system"
+# `--check` exits non-zero when pdm.lock no longer satisfies pyproject and
+# writes nothing, so a commit that adds a dependency without relocking fails
+# here rather than in every contributor's next install.
+entry = "{{ cmd.lock_check() }}"
+files = "^(pyproject\\.toml|{{ cmd.lockfile() | replace('.', '\\\\.') }})$"
+{%- else %}
+id = "uv-lock-check"
+name = "uv lock --check"
+language = "system"
+# `--check` is the non-writing form of `uv lock`. Not `--frozen`, which
+# asserts that the lock is *used* rather than that it is *current*.
+entry = "{{ cmd.lock_check() }}"
+files = "^(pyproject\\.toml|{{ cmd.lockfile() | replace('.', '\\\\.') }})$"
+{%- endif %}
+pass_filenames = false
+
+# Conventional Commits, checked on `commit-msg` by the same commitizen and the
+# same `emotional` rule set that writes the changelog. One grammar, one
+# implementation — a separate node-based commitlint would be a second opinion
+# about what a valid subject is, and the two would eventually disagree.
+[[repos.hooks]]
+id = "commitizen"
+name = "cz check"
+language = "system"
+{%- if is_pdm %}
+entry = "pdm run cz check --commit-msg-file"
+{%- else %}
+entry = "uv run --group release cz check --commit-msg-file"
+{%- endif %}
+stages = ["commit-msg"]
+
+# --- project-specific hooks ---------------------------------------------------
+#
+# Add architecture guards and other project-only hooks below this line. The
+# template owns everything above it and will keep updating it; everything here
+# is yours, and Git's 3-way merge preserves it across `git tpl update`.
+#
+# The pattern these projects use is a grep that fails the commit when a
+# dependency escapes the module that is supposed to contain it:
+#
+#   [[repos.hooks]]
+#   id = "http-isolation"
+#   name = "the HTTP client is confined to the data layer"
+#   language = "system"
+#   entry = "bash -c '! grep -rn --include=*.py \"^import httpx\" src | grep -v \"^src/{{ package }}/data/\"'"
+#   types = ["python"]
+#   pass_filenames = false

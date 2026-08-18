@@ -1,0 +1,66 @@
+# The uv stack, every slot on, and the *manual* release flow.
+#
+# The counterpart to uv-minimal: same stack, opposite release model. Between
+# the two, every branch of `gh_ship` is rendered on the uv stack, and between
+# these and the pdm cases every combination of the two forks that matters is
+# covered without a five-by-two matrix.
+
+[answers]
+distribution = "uv-full-example"
+package = "uv_full_example"
+description = "uv stack, manual release, every slot on"
+owner = "noirbizarre"
+author_name = "Axel H."
+author_email = "noirbizarre@gmail.com"
+copyright_holder = "Axel H."
+copyright_year = 2026
+keywords = "python, example"
+stack = "uv"
+python_min = "3.10"
+cli = true
+cli_name = "uv-full"
+docs = true
+docs_accent = "teal"
+pypi = true
+codecov = true
+gh_ship = false
+
+[expect]
+files = [
+  ".github/workflows/release.yaml",
+  ".github/workflows/docs.yaml",
+  ".github/codecov.yml",
+  "zensical.toml",
+  "src/uv_full_example/cli.py",
+]
+absent = [
+  ".github/ship.yml",
+  ".github/workflows/ship.yaml",
+  ".github/workflows/prepare-release.yaml",
+  ".github/workflows/publish-release.yaml",
+  "pdm.toml",
+]
+
+[expect.contains]
+# The manual release workflow has to carry the uv stack's build and its relock
+# — the two places `is_pdm` reaches inside a file that only exists when
+# `gh_ship` is false. Nothing else in the suite renders that combination.
+".github/workflows/release.yaml" = [
+  "uv build",
+  "uv lock",
+  "need-checks",
+  "commitizen-action",
+  "gh-action-pypi-publish",
+  "id-token: write",
+]
+# The command name may differ from the distribution name, and the entry point
+# has to follow the command rather than the distribution.
+"pyproject.toml" = [
+  '[project.scripts]',
+  'uv-full = "uv_full_example.cli:app"',
+  'version = "0.1.0"',
+]
+"mise.toml" = ["uv run --group docs zensical build"]
+"zensical.toml" = ['accent = "teal"']
+# No release badge without gh-ship; the rest are all on.
+"README.md" = ["pypi/v/uv-full-example", "codecov.io", "docs-noirbizarre.github.io"]

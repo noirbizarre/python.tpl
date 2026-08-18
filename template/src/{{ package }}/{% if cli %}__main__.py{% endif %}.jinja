@@ -1,0 +1,13 @@
+"""Entry point for `python -m {{ package }}`.
+
+The guard is not ceremony: without it, `from {{ package }}.__main__ import app`
+— which any documentation tool or test that imports the package tree will do —
+runs the CLI as a side effect of the import.
+"""
+
+from __future__ import annotations
+
+from {{ package }}.cli import app
+
+if __name__ == "__main__":
+    app()

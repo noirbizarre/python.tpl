@@ -1,0 +1,14 @@
+# The distribution name is the one answer a rendered project cannot recover
+# from: it reaches PyPI, the repository URL, the `origin` remote and — through
+# the `package` default — the import name. Every one of those rejects a
+# different subset of what a permissive pattern would allow, so the pattern is
+# the strictest of them and it is worth a case of its own.
+#
+# Asserted by diagnostic code, never by message. Pinning prose is how error
+# messages stop improving.
+
+[answers]
+distribution = "Not A Valid Name"
+
+[expect]
+error = "tpl::eval::pattern_mismatch"

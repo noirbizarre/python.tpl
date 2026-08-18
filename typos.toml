@@ -1,0 +1,10 @@
+[files]
+extend-exclude = [
+  "mise.lock",
+  "CHANGELOG.md",
+]
+
+[default.extend-words]
+# The deliberate typo in template.toml's `strict` comment, which is the whole
+# point of that sentence: correcting it would delete the example.
+distributon = "distributon"

@@ -1,0 +1,82 @@
+# Hooks for the template repository itself.
+#
+# Deliberately not the same set as the one the template renders: there is no
+# Python package here, so there is nothing for ruff or ty to check. What there
+# is instead is a template, and `git tpl lint` is the tool that checks it.
+
+default_install_hook_types = ["pre-commit", "commit-msg"]
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "check-added-large-files" },
+  { id = "check-merge-conflict" },
+  { id = "check-yaml" },
+  { id = "check-json" },
+  { id = "mixed-line-ending" },
+  # `template/` is the rendered tree, and a rendered file's trailing whitespace
+  # and final newline are part of what the test snapshots assert. Two of these
+  # files are also deliberately blank (`py.typed`), which the end-of-file fixer
+  # would rewrite.
+  { id = "end-of-file-fixer", exclude = "^template/" },
+  { id = "trailing-whitespace", exclude = "^template/" },
+]
+
+# `check-toml` is *not* in the list above, on purpose: most of the TOML in this
+# repository is a Jinja template and is not valid TOML until it is rendered.
+# The rendered output is parsed instead, by `mise run render:check` and by the
+# render job in CI — which is the only place the question is meaningful.
+
+[[repos]]
+repo = "https://github.com/python-jsonschema/check-jsonschema"
+rev = "0.33.3"
+hooks = [
+  { id = "check-github-workflows", files = "^\\.github/workflows/" },
+  { id = "check-dependabot", files = "^\\.github/dependabot\\.yml$" },
+]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "actionlint"
+name = "actionlint"
+language = "system"
+entry = "actionlint"
+# This repository's own workflows only. The rendered ones under `template/` are
+# Jinja and are linted after rendering, by the render job.
+files = "^\\.github/workflows/.*\\.ya?ml$"
+
+[[repos.hooks]]
+id = "typos"
+name = "typos"
+language = "system"
+entry = "typos"
+pass_filenames = false
+
+# The three things `git tpl lint` catches that nothing else does: an undeclared
+# name in a rendered file, a conditional path segment that renders to a bare
+# extension rather than to nothing, and a GitHub `${{ }}` expression that
+# escaped a `{% raw %}` block.
+[[repos.hooks]]
+id = "tpl-lint"
+name = "git tpl lint"
+language = "system"
+entry = "git tpl lint . --dirty -D warnings"
+pass_filenames = false
+
+# The cases are cheap to render and are the only thing that proves a
+# conditional file was skipped rather than rendered empty.
+[[repos.hooks]]
+id = "tpl-test"
+name = "git tpl test"
+language = "system"
+entry = "git tpl test . --dirty"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "commitizen"
+name = "cz check"
+language = "system"
+entry = "uvx --from commitizen --with emotional cz check --commit-msg-file"
+stages = ["commit-msg"]

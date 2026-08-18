@@ -1,0 +1,100 @@
+# Every optional slot off, on the plainest stack.
+#
+# This is the case that earns its keep. `absent` is the only thing that proves
+# a conditional path segment was skipped rather than rendering something
+# harmless: the conditional-path idiom fails by producing a file, not by
+# erroring, so "it rendered and installed" never shows it.
+#
+# Read twice: by `git tpl test`, which uses [answers] and [expect], and by
+# `--answers-from`, which reads [answers] and ignores the rest. One file, so
+# the test runner and the render tasks cannot drift onto different inputs.
+
+[answers]
+distribution = "minimal-example"
+package = "minimal_example"
+description = "Every optional slot turned off"
+owner = "noirbizarre"
+author_name = "Axel H."
+author_email = "noirbizarre@gmail.com"
+copyright_holder = "Axel H."
+copyright_year = 2026
+keywords = "python"
+stack = "pdm"
+python_min = "3.10"
+cli = false
+docs = false
+pypi = false
+codecov = false
+gh_ship = false
+
+[expect]
+files = [
+  "pyproject.toml",
+  "mise.toml",
+  "prek.toml",
+  "typos.toml",
+  "LICENSE",
+  "README.md",
+  "CONTRIBUTING.md",
+  "AGENTS.md",
+  ".gitignore",
+  ".github/actionlint.yml",
+  ".github/dependabot.yml",
+  ".github/workflows/ci.yaml",
+  ".github/workflows/template.yaml",
+  ".github/workflows/release.yaml",
+  "src/minimal_example/__init__.py",
+  "src/minimal_example/py.typed",
+  "tests/conftest.py",
+  "tests/test_minimal_example.py",
+]
+absent = [
+  # docs
+  "zensical.toml",
+  "docs/index.md",
+  "docs/api.md",
+  "docs/adr/README.md",
+  ".github/workflows/docs.yaml",
+  # cli
+  "src/minimal_example/cli.py",
+  "src/minimal_example/__main__.py",
+  # gh_ship — the whole other release shape, which must not co-exist with
+  # release.yaml above
+  ".github/ship.yml",
+  ".github/workflows/ship.yaml",
+  ".github/workflows/prepare-release.yaml",
+  ".github/workflows/publish-release.yaml",
+  # codecov
+  ".github/codecov.yml",
+  # pdm-uv only
+  "pdm.toml",
+]
+
+[expect.contains]
+"pyproject.toml" = [
+  'name = "minimal-example"',
+  # PEP 639, not the deprecated `license = { text = ... }` table.
+  'license = "MIT"',
+  'requires-python = ">=3.10"',
+  # The version is the tag on this stack, so there is no string to bump.
+  'dynamic = ["version"]',
+  'build-backend = "pdm.backend"',
+  'version_provider = "scm"',
+  "[tool.pdm.scripts]",
+  'target-version = "py310"',
+  'python-version = "3.10"',
+  # The oldest and the newest supported version both reach the classifiers,
+  # from the same computed list the CI matrix is rendered from.
+  '"Programming Language :: Python :: 3.10"',
+  '"Programming Language :: Python :: 3.14"',
+]
+# The task host is PDM on this stack, so mise delegates and names no `uv`
+# anywhere.
+"mise.toml" = ['run = "pdm run test"', 'pdm = "latest"']
+"prek.toml" = ["pdm lock --check", "pdm run cz check"]
+".github/workflows/ci.yaml" = [
+  "pdm install -G test",
+  '"3.10", "3.11", "3.12", "3.13", "3.14"',
+]
+".github/workflows/release.yaml" = ["need-checks", "commitizen-action"]
+"README.md" = ["ci.yaml/badge.svg"]

@@ -1,0 +1,69 @@
+# Agent notes for {{ distribution }}
+
+{{ description }}
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first; it is written for humans and is
+accurate. This file records what is easy to get wrong.
+
+## Commands
+
+Use the tasks, not the underlying tools — they carry the flags CI uses:
+
+```bash
+mise run install    # the environment
+mise run ci         # format:check, lint, typecheck, cover{% if docs %}, docs:build{% endif %}
+mise run test -k X  # a subset
+```
+{% if is_pdm %}
+The task host is PDM. `mise run <task>` delegates to `pdm run <task>`; the
+canonical definitions are `[tool.pdm.scripts]` in `pyproject.toml`.
+{% else %}
+The task host is mise. The canonical definitions are `[tasks.*]` in
+`mise.toml`; `pyproject.toml` has no scripts table and should not grow one.
+{% endif %}
+Always `mise run <task>`, never bare `mise <task>`: a mise builtin subcommand
+of the same name wins silently and says nothing about the task it shadowed.
+
+## Constraints that are not obvious
+
+- **Python {{ python_min }} is the floor.** `ty` checks against it, and the CI
+  matrix runs the tests on it. A construct newer than {{ python_min }} is an
+  error even though the development interpreter is {{ python_default }}.
+- **The supported range is derived, not written down.** `requires-python`, the
+  trove classifiers, the ruff `target-version`, the ty environment and the CI
+  matrix all come from one answer in the template. Do not edit one of them to
+  fix a mismatch — they cannot mismatch, so a mismatch means the file is stale
+  and the fix is `git tpl merge`.
+- **The version.**{% if is_pdm %} It is the Git tag. `pyproject.toml` declares
+  `dynamic = ["version"]` and pdm-backend reads the tag at build time. There is
+  no version string to edit, and adding one would be a second, divergent
+  source of truth.{% else %} It is `project.version` in `pyproject.toml`, and
+  `cz bump` owns it. Do not edit it by hand; if you do, `uv.lock` is
+  immediately stale and the `uv-lock-check` hook fails the commit.{% endif %}
+- **Commit subjects are Conventional Commits**, validated on `commit-msg` and
+  used verbatim as changelog entries.
+- **`# --- project-specific ---` markers** separate template-owned lines from
+  the project's own. Add below the marker. Editing above it means the next
+  `git tpl merge` conflicts.
+
+## Where things live
+
+```
+src/{{ package }}/       the package
+tests/                   pytest, mirroring src/
+{% if docs %}docs/                    the documentation site (zensical.toml drives the nav)
+{% endif %}.github/workflows/       CI and release
+mise.toml                toolchain{% if not is_pdm %} and tasks{% endif %}
+prek.toml                the hooks — almost all `local`, running the installed tools
+```
+
+## Do not
+
+- Add a `.pre-commit-config.yaml`. The hooks live in `prek.toml`; two config
+  formats for one runner means one of them is stale.
+- Add mypy, black, isort or flake8. ruff and ty cover all four, and running two
+  linters means arbitrating between them forever.
+- Pin a tool version in `prek.toml` that is already floored in
+  `[dependency-groups]`. The two drift, and the hook then disagrees with CI.
+- Commit `.venv`{% if is_pdm %}, `src/{{ package }}/VERSION`{% endif %} or
+  `coverage.xml`.

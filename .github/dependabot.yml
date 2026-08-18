@@ -1,0 +1,19 @@
+version: 2
+
+updates:
+  # This repository has no dependency manifest of its own — the toolchain is
+  # mise.toml, which Dependabot does not read. Actions are the one thing here
+  # it can keep current, and the one thing that breaks silently: a deprecated
+  # runner image or a removed action major fails the render job, not a user's
+  # build.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    rebase-strategy: disabled
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+      include: scope

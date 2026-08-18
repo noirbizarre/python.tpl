@@ -1,0 +1,282 @@
+# python.tpl — the base stack for noirbizarre's Python projects.
+#
+# What this template owns is deliberately bounded: the toolchain (mise), the
+# hooks (prek), the packaging backend and its task host, the linter, the type
+# checker, the test runner, the changelog contract and the CI/release
+# workflows. It does NOT own dependency *versions* beyond a floor — Dependabot
+# bumps those weekly in every consumer, and a template that propagated its own
+# pins would fight Dependabot on every `git tpl update`.
+#
+# Files carrying project-specific additions (pyproject.toml, mise.toml,
+# prek.toml) end with a `# --- project-specific ---` marker. Add below it, and
+# Git's 3-way merge keeps your additions across updates.
+
+name = "python"
+description = "Python project base stack: mise, prek, ruff, ty, pytest, commitizen, CI and publication"
+
+# An undeclared name in a rendered file is an error, not an empty string.
+#
+# Without this, `name = "{{ distribution }}"` typed as `{{ distributon }}`
+# renders `name = ""`, which is valid TOML, and the command exits 0.
+#
+# It has one consequence this template is built around: a question whose `when`
+# is false is ABSENT from the context, not false. So a `when`-gated name may be
+# read only inside a block already guarded by the same condition. Every
+# question that gates a file is therefore asked unconditionally; `when` appears
+# only on questions consumed inside their own branch — `cli_name`, which is
+# read inside `{% if cli %}` files, and `docs_accent`, which is read inside
+# `{% if docs %}zensical.toml{% endif %}.jinja`.
+strict = true
+
+# What git-tpl will not do, shown once, after `init`: it renders files and
+# executes nothing (ADR-019), so installing, wiring the hooks and configuring
+# the publisher are left to the reader.
+#
+# Declared here, above every table, and that is not a style choice. `note_file`
+# is a top-level key, and in TOML a bare key written after a table header
+# belongs to that table — so `note_file` placed after `[computed]` becomes a
+# computed value and the note silently never appears, while the same key after
+# `[remotes]` becomes a Git remote named `note_file` and `git tpl init`
+# cheerfully adds it. Neither errors, and `git tpl lint` cannot see either,
+# because as far as the manifest is concerned `note_file` was simply not set.
+note_file = "NEXT-STEPS.md.jinja"
+
+# --- Identity ---------------------------------------------------------------
+
+[questions.distribution]
+type = "string"
+prompt = "Distribution name"
+help = "What `pip install NAME` takes. Also the GitHub repository name."
+default_from = "{{ remote.name | default(dir.name) | slugify }}"
+# The PEP 503 normalised form, restricted further: no dots, no underscores, no
+# leading or trailing dash. This string becomes a PyPI name, a URL path and the
+# stem of the import name below, and each of those rejects a different subset
+# of what a looser pattern would allow.
+pattern = "^[a-z0-9]+(-[a-z0-9]+)*$"
+message = "must be lowercase alphanumeric words separated by single dashes"
+
+[questions.package]
+type = "string"
+prompt = "Import package name"
+help = "What `import NAME` takes. Usually the distribution with dashes replaced."
+# Not computed, because the two legitimately differ: `pdm-dockerize` imports
+# `pdm_dockerize`, but a `gh-`-prefixed distribution rarely wants the prefix in
+# its import name. Seeded from the distribution so the common case is Enter.
+default = "{{ distribution | replace('-', '_') }}"
+# A Python identifier. Namespace packages are deliberately NOT supported: they
+# doubled the conditional surface of the previous attempt for the sake of one
+# project, and a namespace can be added by hand afterwards.
+pattern = "^[a-z_][a-z0-9_]*$"
+message = "must be a lowercase Python identifier (letters, digits, underscores)"
+
+[questions.description]
+type = "string"
+prompt = "One-line description"
+help = "Used in pyproject, the README tagline and the documentation site."
+
+[questions.owner]
+type = "string"
+prompt = "GitHub owner"
+default_from = "{{ remote.owner }}"
+default = "noirbizarre"
+
+[questions.author_name]
+type = "string"
+prompt = "Author name"
+default_from = "git:user.name"
+default = "Axel H."
+
+[questions.author_email]
+type = "string"
+prompt = "Author email"
+default_from = "git:user.email"
+default = "noirbizarre@gmail.com"
+
+[questions.copyright_holder]
+type = "string"
+prompt = "Copyright holder"
+help = "Appears in LICENSE and the documentation footer."
+default = "{{ author_name }}"
+
+# Rendering is clock-free by design (ADR-006: no runtime context, so that the
+# same template revision and the same answers always produce the same tree).
+# The copyright year therefore cannot be read from a clock and has to be asked.
+# It is stored in `.config/git.tpl.toml`, so it survives every update — and
+# never advances on its own, which is correct: the year of first publication is
+# what a copyright notice records.
+[questions.copyright_year]
+type = "integer"
+prompt = "Copyright year"
+default = 2026
+
+[questions.keywords]
+type = "string"
+prompt = "Keywords (comma-separated)"
+default = "python"
+
+# --- The stack --------------------------------------------------------------
+
+# The one axis this template branches on. Everything else is stack-agnostic.
+#
+# The differences are confined to six places and nowhere else:
+#   1. [build-system]                       in pyproject.toml
+#   2. [tool.pdm.*] / pdm.toml / [tool.uv*] in pyproject.toml
+#   3. the task host: [tool.pdm.scripts] vs mise [tasks.*]
+#   4. the lock-check hook in prek.toml
+#   5. the install and build steps in the workflows
+#   6. the commitizen version provider (scm vs pep621)
+#
+# Each of those reads a `[computed]` name below — `is_pdm`, `version_source`,
+# `cz` — rather than comparing `stack` inline, so a fourth stack (or a child
+# template) changes the computed values and not thirty files.
+[questions.stack]
+type = "choice"
+prompt = "Toolchain"
+choices = [
+  { value = "pdm", label = "PDM", help = "pdm-backend, PDM's own resolver, tasks in [tool.pdm.scripts]" },
+  { value = "pdm-uv", label = "PDM + uv resolver", help = "pdm-backend, use_uv = true, tasks in [tool.pdm.scripts]" },
+  { value = "uv", label = "uv", help = "uv_build backend, uv resolver, tasks in mise.toml" },
+]
+default = "pdm-uv"
+
+# The minimum supported Python. Everything from here to the newest entry in
+# data/python.toml becomes the CI matrix, the trove classifiers, the ruff
+# target and the ty environment — four things that disagreed with each other in
+# the previous attempt and now cannot.
+#
+# It is a `choice` over static data, not a free string: rendering is
+# network-free (ADR-006), so the live endoflife.date lookup the previous
+# attempt used is impossible here. The catalogue lives in data/python.toml and
+# moves when this template moves, which is the honest place for it — a
+# project's supported range should change in a reviewable commit, not silently
+# because a website updated overnight.
+[questions.python_min]
+type = "choice"
+prompt = "Minimum supported Python"
+choices_from = "data.python.supported"
+default = "3.10"
+
+# --- Optional slots ---------------------------------------------------------
+#
+# All five are asked unconditionally. Each gates at least one file path, and
+# `strict = true` makes an absent name an error rather than a quietly empty
+# branch — which is exactly how the previous attempt shipped a docs site with
+# no docs dependencies for months.
+
+[questions.cli]
+type = "boolean"
+prompt = "Ship a command-line entry point?"
+help = "Adds cyclopts, [project.scripts], src/<package>/cli.py and __main__.py."
+default = false
+
+[questions.cli_name]
+type = "string"
+prompt = "Command name"
+help = "Usually the distribution name. Hosts sometimes mandate another."
+when = "cli"
+default = "{{ distribution }}"
+pattern = "^[a-z0-9]+(-[a-z0-9]+)*$"
+message = "must be lowercase alphanumeric words separated by single dashes"
+
+[questions.docs]
+type = "boolean"
+prompt = "Publish a documentation site?"
+help = "Zensical and mkdocstrings-python, deployed to GitHub Pages."
+default = true
+
+[questions.docs_accent]
+type = "choice"
+prompt = "Documentation accent colour"
+when = "docs"
+choices = ["indigo", "deep orange", "teal", "purple", "cyan", "pink", "amber"]
+default = "indigo"
+
+[questions.pypi]
+type = "boolean"
+prompt = "Publish to PyPI?"
+help = """
+Adds a Trusted Publishing job — OIDC, no token — to the release workflow, and \
+the PyPI badge. Answer no for an application or an internal package.\
+"""
+default = true
+
+[questions.codecov]
+type = "boolean"
+prompt = "Upload coverage to Codecov?"
+help = "Adds the upload step, .github/codecov.yml and the coverage badge."
+default = true
+
+# The release model. Two genuinely different shapes, not one shape with a flag:
+#
+#   false -> a single `release.yaml`, dispatched by hand: `need-checks` gates on
+#            a green CI, then commitizen-action bumps, tags and releases. What
+#            pdm-dockerize and the older projects use.
+#   true  -> the gh-ship Release PR flow: `ship.yaml` drives `prepare-release`
+#            (which runs `cz bump` and emits ship.release.json) and
+#            `publish-release`. Nothing is dispatched by hand.
+#
+# Rendered as different files rather than as branches inside one file, because
+# a workflow that is half of each is a workflow nobody can read. Commitizen and
+# the `emotional` rule set are common to both: only the orchestration differs.
+[questions.gh_ship]
+type = "boolean"
+prompt = "Use the gh-ship Release PR flow?"
+help = "No means a manually dispatched release.yaml driven by commitizen-action."
+default = true
+
+# --- Data -------------------------------------------------------------------
+
+# The supported-Python catalogue. Static, and it has to be: rendering reads no
+# clock and no network, so endoflife.date cannot be consulted. Each entry
+# carries `minor` as an integer so the slice in `[computed]` is a numeric
+# comparison — as strings, "3.9" sorts after "3.10" and the matrix silently
+# loses everything from 3.10 up.
+[data.python]
+source = "data/python.toml"
+
+# --- Computed ---------------------------------------------------------------
+
+[computed]
+repo_url = "https://github.com/{{ owner }}/{{ distribution }}"
+docs_url = "https://{{ owner }}.github.io/{{ distribution }}/"
+
+# The numeric minor of the chosen minimum, so the slice below compares numbers.
+python_min_minor = "{{ data.python.versions | selectattr('value', 'eq', python_min) | map(attribute='minor') | first }}"
+
+# The supported range: the chosen minimum through the newest entry in the data
+# file. This single list feeds the CI matrix, the trove classifiers, the ruff
+# target and `requires-python`, which is exactly the disagreement it replaces.
+python_versions = "{{ data.python.versions | selectattr('minor', 'ge', python_min_minor) | map(attribute='value') | list }}"
+python_max = "{{ python_versions | last }}"
+
+# The interpreter everything outside the matrix runs on — lint, typecheck,
+# docs, releases. The newest supported one, so a deprecation shows up there
+# before it shows up in a user's environment.
+python_default = "{{ python_max }}"
+
+# ruff and ty want `py310`; pyproject wants `3.10`. Derived once so they cannot
+# disagree, which they did in the previous attempt.
+ruff_target = "py{{ python_min | replace('.', '') }}"
+
+# One place that answers "is this a PDM project?", so no file has to spell the
+# two-membered set out again — and a child template can read it too.
+is_pdm = "{{ stack in ['pdm', 'pdm-uv'] }}"
+
+# The bump and the changelog come from commitizen either way; only where the
+# version *lives* differs. pdm-backend reads it from the SCM tag, so there is
+# no string in pyproject to rewrite. uv_build has no SCM source, so the uv
+# stack keeps a literal in pyproject and commitizen rewrites it.
+version_source = "{{ 'scm' if is_pdm else 'pep621' }}"
+
+# The prefix that reaches the installed commitizen on this stack, so the
+# release workflows do not spell the stack out four times each.
+cz = "{{ 'pdm run cz' if is_pdm else 'uv run --group release cz' }}"
+
+# The line length. Named because more than one file has to agree on it, and in
+# the previous attempt .editorconfig said 110 while ruff said 100.
+line_length = "{{ 100 }}"
+
+# --- Remotes ----------------------------------------------------------------
+
+[remotes]
+origin = "git@github.com:{{ owner }}/{{ distribution }}.git"

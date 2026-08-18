@@ -1,0 +1,172 @@
+{%- import "macros/python.jinja" as py -%}
+{%- import "macros/commands.jinja" as cmd -%}
+{%- raw %}name: ♻️ CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# GitHub's default shell on Linux is `bash -e {0}`, which does not set
+# `pipefail` — so a failing command in the middle of a pipeline is invisible.
+# Naming bash explicitly gets `-e -o pipefail`.
+defaults:
+  run:
+    shell: bash
+
+env:
+  FORCE_COLOR: "1"
+  # NOT `MISE_ACTION_VERSION`, however obvious that name looks: mise reads
+  # `MISE_<TOOL>_VERSION` from the environment, so that name would be read as a
+  # request to install a tool called `action`.
+  #
+  # Owned by the template: bump it there and `git tpl update` propagates it.
+  # The other workflows repeat the literal, because `env:` does not cross
+  # files.
+  PINNED_MISE_VERSION: 2026.7.18
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: 🕵️ Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v4
+        with:
+          version: ${{ env.PINNED_MISE_VERSION }}
+          cache: true
+{%- endraw %}
+
+      - name: Install
+        # The lint job needs `release` as well: the `cz check` hook runs
+        # commitizen, and prek's hooks are `local` by design — they run the
+        # tools this project installed, not tools prek fetched.
+        run: {% if is_pdm %}pdm install -G lint -G release{% else %}uv sync --group lint --group release{% endif %}
+{%- raw %}
+
+      # The hooks themselves, not a parallel set of checks that happens to
+      # agree with them. This is the same command a developer's `git commit`
+      # runs, so a green run here means the hooks actually pass — and a hook
+      # that only ever runs locally is a hook that has already rotted.
+      - name: Run the hooks
+        run: prek run --all-files --show-diff-on-failure
+
+  typecheck:
+    name: 🔎 Types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v4
+        with:
+          version: ${{ env.PINNED_MISE_VERSION }}
+          cache: true
+{%- endraw %}
+
+      - name: Install
+        run: {{ cmd.install("lint") }}
+
+      # `ty` runs against the minimum supported Python ({{ python_min }}),
+      # declared once in `[tool.ty.environment]`. Checking against the newest is
+      # how a {{ python_max }}-only construct reaches a package that claims
+      # {{ python_min }} — the matrix below runs the tests on {{ python_min }},
+      # but a test suite only exercises the code paths it happens to reach.
+      - name: Type-check
+        run: mise run typecheck
+{%- raw %}
+
+  test:
+    name: 🧪 Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Every leg runs to completion: knowing that 3.10 and 3.14 both fail is
+      # a different diagnosis from knowing that only 3.10 does.
+      fail-fast: false
+      matrix:
+{%- endraw %}
+        # Rendered from `python_versions`, the same computed list that produces
+        # the trove classifiers and `requires-python`. One answer, three
+        # outputs, and no way for them to disagree — which they did, silently,
+        # in the previous generation of this template.
+        python: [{{ py.matrix_list() }}]
+    steps:
+      - uses: actions/checkout@v7
+{% if is_pdm %}
+      - uses: pdm-project/setup-pdm@v4
+        with:
+          python-version: {% raw %}${{ matrix.python }}{% endraw %}
+{%- if stack == 'pdm-uv' %}
+
+      # `pdm.toml` sets `use_uv = true`, so PDM resolves and installs through
+      # uv and needs it on PATH. `setup-uv` also points PDM at uv's interpreter
+      # directory, so the matrix version is the one PDM actually uses rather
+      # than one it downloads again.
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Point PDM at uv
+        run: pdm config python.install_root "$(uv python dir --color never)"
+{%- endif %}
+
+      - name: Install
+        run: {{ cmd.install("test") }}
+{% else %}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: {% raw %}${{ matrix.python }}{% endraw %}
+          enable-cache: true
+
+      - name: Install
+        run: {{ cmd.install("test") }}
+{% endif %}
+      - name: Run the test suite
+{%- if is_pdm %}
+        run: pdm run cover
+{%- else %}
+        run: uv run --group test pytest --cov --cov-report=term-missing --cov-report=xml:coverage.xml
+{%- endif %}
+{%- if codecov %}
+
+      # Flagged per interpreter, so a leg that failed to upload shows up as a
+      # missing flag rather than as a coverage drop that did not happen.
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.xml
+          flags: {% raw %}py${{ matrix.python }}{% endraw %}
+        env:
+          CODECOV_TOKEN: {% raw %}${{ secrets.CODECOV_TOKEN }}{% endraw %}
+{%- endif %}
+{%- if gh_ship %}
+{%- raw %}
+
+  # gh-ship runs the release, and it enforces a contract between .github/ship.yml
+  # and the workflows that file names. Finding out mid-release that the contract
+  # is broken is the worst possible moment, so it is checked on every pull
+  # request instead. It needs no secrets: `validate` reads the repository.
+  ship:
+    name: 🚢 Ship setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install gh-ship
+        run: gh extension install noirbizarre/gh-ship
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Validate the release setup
+        run: gh ship validate
+        env:
+          GH_TOKEN: ${{ github.token }}
+{%- endraw %}
+{%- endif %}

@@ -1,0 +1,70 @@
+<p align="center">
+  <img src="docs/images/icon.svg" alt="{{ distribution }}" width="160">
+</p>
+
+<h1 align="center">{{ distribution }}</h1>
+
+<p align="center"><strong>{{ description }}</strong></p>
+
+<p align="center">
+  <a href="{{ repo_url }}/actions/workflows/ci.yaml">
+    <img src="{{ repo_url }}/actions/workflows/ci.yaml/badge.svg" alt="CI">
+  </a>
+{%- if codecov %}
+  <a href="https://codecov.io/gh/{{ owner }}/{{ distribution }}">
+    <img src="https://codecov.io/gh/{{ owner }}/{{ distribution }}/graph/badge.svg" alt="Codecov">
+  </a>
+{%- endif %}
+{%- if pypi %}
+  <a href="https://pypi.org/project/{{ distribution }}/">
+    <img src="https://img.shields.io/pypi/v/{{ distribution }}" alt="PyPI">
+  </a>
+{%- endif %}
+{%- if gh_ship %}
+  <img src="https://img.shields.io/github/v/release/{{ owner }}/{{ distribution }}" alt="Release">
+{%- endif %}
+{%- if docs %}
+  <a href="{{ docs_url }}">
+    <img src="https://img.shields.io/badge/docs-{{ owner }}.github.io-blue" alt="Documentation">
+  </a>
+{%- endif %}
+  <a href="https://github.com/j178/prek">
+    <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/j178/prek/master/docs/assets/badge-v0.json" alt="prek">
+  </a>
+  <img src="https://img.shields.io/github/license/{{ owner }}/{{ distribution }}" alt="License">
+</p>
+
+---
+
+<!-- One paragraph: what this does and why it exists. Lead with the problem, -->
+<!-- not the implementation. -->
+
+## Installation
+{% if pypi %}
+```bash
+pip install {{ distribution }}
+```
+{% else %}
+```bash
+pip install git+{{ repo_url }}
+```
+{% endif %}
+{%- if cli %}
+## Usage
+
+```bash
+{{ cli_name }} --help
+```
+{% endif %}
+{%- if docs %}
+## Documentation
+
+<{{ docs_url }}>
+{% endif %}
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).

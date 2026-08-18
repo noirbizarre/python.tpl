@@ -1,0 +1,77 @@
+{#
+  The per-stack command vocabulary.
+
+  Every command a child template might need to run in a workflow or a task,
+  expressed once. A child calls these rather than branching on `stack` — which
+  is the difference between adding a stack later and rewriting every child.
+
+  Usage:
+
+      {% import "macros/commands.jinja" as cmd %}
+      run: {{ cmd.install("test") }}
+
+  Imported as `cmd`, never as `stack`: an import binds a name in the same
+  namespace the answers live in, so `{% import ... as stack %}` shadows the
+  `stack` answer and every `{% if stack == 'pdm-uv' %}` in the file silently
+  becomes false. It compares a module to a string, which is not an error — it
+  is just never true. That cost an afternoon once; hence the name.
+#}
+
+{#- Install the project plus the named dependency group. -#}
+{%- macro install(group) -%}
+{%- if is_pdm -%}
+pdm install -G {{ group }}
+{%- else -%}
+uv sync --group {{ group }}
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Install the project plus every dependency group. -#}
+{%- macro install_all() -%}
+{%- if is_pdm -%}
+pdm install -G:all
+{%- else -%}
+uv sync --all-groups
+{%- endif -%}
+{%- endmacro -%}
+
+{#-
+  Run a command inside the project environment, with the named group available.
+
+  On the PDM stacks the group has to be installed first — `pdm run` does not
+  sync — which is why `install` is a separate macro rather than folded in here.
+-#}
+{%- macro run(group, command) -%}
+{%- if is_pdm -%}
+pdm run {{ command }}
+{%- else -%}
+uv run --group {{ group }} {{ command }}
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Build the distributions into dist/. -#}
+{%- macro build() -%}
+{%- if is_pdm -%}
+pdm build
+{%- else -%}
+uv build
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Assert that the lockfile still satisfies pyproject, writing nothing. -#}
+{%- macro lock_check() -%}
+{%- if is_pdm -%}
+pdm lock --check
+{%- else -%}
+uv lock --check
+{%- endif -%}
+{%- endmacro -%}
+
+{#- The lockfile's name, for .gitignore negations and hook `files` patterns. -#}
+{%- macro lockfile() -%}
+{%- if is_pdm -%}
+pdm.lock
+{%- else -%}
+uv.lock
+{%- endif -%}
+{%- endmacro -%}

@@ -1,0 +1,41 @@
+# The supported-Python catalogue.
+#
+# Static by necessity: rendering reads no clock and no network (ADR-006), so
+# the endoflife.date lookup a template *would* like here is impossible. That is
+# the right trade — a project's supported range moving should be a reviewable
+# commit in this repository, propagated by `git tpl update`, not a silent change
+# because a website did.
+#
+# `supported` is what the `python_min` question offers. `versions` carries the
+# integer `minor` that `[computed]` slices on, because as strings "3.9" sorts
+# after "3.10" and the range would silently lose everything from 3.10 up. The
+# two lists are kept in one file so a version cannot be offered without being
+# sliceable.
+#
+# Both are ordered oldest-first, and that order is load-bearing: it is the CI
+# matrix order and the classifier order. Append, never reorder.
+#
+# Maintenance: when a version reaches end of life, delete it from BOTH lists in
+# one commit. Every consumer then sees the drop in `git tpl diff`.
+
+supported = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
+[[versions]]
+value = "3.10"
+minor = 10
+
+[[versions]]
+value = "3.11"
+minor = 11
+
+[[versions]]
+value = "3.12"
+minor = 12
+
+[[versions]]
+value = "3.13"
+minor = 13
+
+[[versions]]
+value = "3.14"
+minor = 14

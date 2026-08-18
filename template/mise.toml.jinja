@@ -1,0 +1,233 @@
+# Toolchain and, on the `uv` stack, tasks.
+#
+# Tool versions resolve to exact builds in `mise.lock`, which is committed, so
+# `mise run ci` locally and the CI workflow run identical tool versions.
+#
+# There is exactly one task host per project. On the PDM stacks it is
+# `[tool.pdm.scripts]` in pyproject.toml and the tasks here are thin
+# delegations; on the `uv` stack it is this file and pyproject has no scripts
+# table at all. Two task hosts is how `pdm run test` and `mise run test` end up
+# meaning different things.
+
+[settings]
+# Resolve tools through mise.lock and keep it updated. Without this the
+# lockfile is ignored and `latest` really does mean latest, on every machine
+# independently.
+lockfile = true
+
+# Do not let mise adopt `.python-version` or pyproject's `requires-python` as a
+# version source. The development interpreter is declared once, below —
+# `requires-python` is the *floor* the package supports, which is a different
+# question and usually a different answer.
+idiomatic_version_file_enable_tools = []
+
+[tools]
+# The development interpreter: the newest supported version, so a deprecation
+# shows up here before it shows up in a user's environment. The matrix in
+# ♻️ CI covers {{ python_min }} through {{ python_max }}.
+python = "{{ python_default }}"
+{%- if is_pdm %}
+pdm = "latest"
+{%- endif %}
+{%- if stack != 'pdm' %}
+uv = "latest"
+{%- endif %}
+prek = "latest"
+typos = "latest"
+actionlint = "latest"
+# The aqua backend named explicitly. Left as a bare `shellcheck` it resolves to
+# `asdf:shellcheck`, which carries no lockfile URLs — and `mise install
+# --locked`, which mise-action runs as soon as a mise.lock exists, then fails
+# on the one entry it cannot verify.
+"aqua:koalaman/shellcheck" = "latest"
+# The template this project is rendered from. `cargo:` rather than `github:` or
+# `ubi:`, which install it fine but write no lockfile URLs. It is not a source
+# build: git-tpl ships binstall metadata, so this is a download.
+#
+# An explicit version, never `latest`: mise applies a `minimum_release_age`, so
+# `latest` resolves to whatever is old enough rather than to the newest release.
+"cargo:git-tpl" = "0.6.0"
+cargo-binstall = "latest"
+
+[env]
+# The virtualenv every task runs in, created on first use. This is what makes a
+# bare `pytest` in an interactive shell work without `pdm run` or `uv run`.
+_.python.venv = { path = ".venv", create = true }
+
+# --- Everyday -----------------------------------------------------------------
+#
+# `mise <task>` is shorthand for `mise tasks run <task>`, and a builtin
+# subcommand of the same name wins it silently — `mise fmt` formats mise.toml
+# rather than running the formatter, and says nothing about the task it
+# shadowed. Use `mise run <task>` in scripts and workflows, always.
+
+[tasks.install]
+description = "Install the project and every dependency group"
+{%- if is_pdm %}
+run = "pdm install -G:all"
+{%- else %}
+run = "uv sync --all-groups"
+{%- endif %}
+{% if is_pdm %}
+# On this stack PDM owns the tasks. These exist so that `mise run test` means
+# the same thing in every project rendered from this template, whichever stack
+# it chose — the CI workflows and the muscle memory are then identical, and the
+# stack becomes an implementation detail rather than a dialect.
+
+[tasks.test]
+description = "Run the test suite"
+# `raw_args` so selectors and flags reach pytest: `mise run test -k parser`.
+raw_args = true
+run = "pdm run test"
+
+[tasks.cover]
+description = "Run the test suite with coverage"
+run = "pdm run cover"
+
+[tasks.lint]
+description = "Lint the code"
+run = "pdm run lint"
+
+[tasks.format]
+description = "Format the code and sort imports"
+run = "pdm run format"
+
+[tasks."format:check"]
+description = "Check the formatting without rewriting"
+run = "pdm run format:check"
+
+[tasks.typecheck]
+description = "Type-check the code"
+run = "pdm run typecheck"
+{% if docs %}
+[tasks."docs:build"]
+description = "Build the documentation site"
+run = "pdm run docs:build"
+
+[tasks."docs:serve"]
+description = "Serve the documentation locally, with live reload"
+run = "pdm run docs:serve"
+{% endif %}
+[tasks.changelog]
+description = "Preview the changelog for the unreleased commits"
+run = "pdm run changelog"
+
+[tasks.ci]
+description = "Everything CI runs, locally"
+run = "pdm run ci"
+{% else %}
+# On this stack mise owns the tasks and pyproject.toml has no scripts table.
+#
+# Every command goes through `uv run`, which syncs the environment first — so a
+# task cannot silently run against a stale venv, which is the failure mode of
+# activating one by hand and forgetting.
+
+[tasks.test]
+description = "Run the test suite"
+# `raw_args` so selectors and flags reach pytest: `mise run test -k parser`.
+raw_args = true
+run = "uv run --group test pytest"
+
+[tasks.cover]
+description = "Run the test suite with coverage"
+run = "uv run --group test pytest --cov --cov-report=term-missing --cov-report=xml:coverage.xml"
+
+[tasks.lint]
+description = "Lint the code"
+run = "uv run --group lint ruff check src tests"
+
+[tasks.format]
+description = "Format the code and sort imports"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+# Import sorting first: `ruff format` does not sort, and running it afterwards
+# would leave the files needing a second pass.
+uv run --group lint ruff check --select I --fix-only src tests
+uv run --group lint ruff format src tests
+"""
+
+[tasks."format:check"]
+description = "Check the formatting without rewriting"
+run = "uv run --group lint ruff format --check src tests"
+
+[tasks.typecheck]
+description = "Type-check the code"
+run = "uv run --group lint ty check src tests"
+{% if docs %}
+[tasks."docs:build"]
+description = "Build the documentation site"
+run = "uv run --group docs zensical build"
+
+[tasks."docs:serve"]
+description = "Serve the documentation locally, with live reload"
+run = "uv run --group docs zensical serve"
+{% endif %}
+[tasks.changelog]
+description = "Preview the changelog for the unreleased commits"
+run = "uv run --group release cz changelog --unreleased-version NEXT --dry-run"
+
+[tasks.ci]
+description = "Everything CI runs, locally"
+depends = ["format:check", "lint", "typecheck", "cover"{% if docs %}, "docs:build"{% endif %}]
+{% endif %}
+# --- Repository-wide ----------------------------------------------------------
+
+[tasks.spell]
+description = "Check spelling"
+run = "typos"
+
+[tasks."lint:actions"]
+description = "Lint the GitHub Actions workflows"
+# Suppressions live in .github/actionlint.yml rather than as flags here, so
+# this task and the prek hook cannot drift apart.
+run = "actionlint .github/workflows/*.yaml"
+
+[tasks.hooks]
+description = "Run every prek hook over every file"
+run = "prek run --all-files --show-diff-on-failure"
+
+# --- Template -----------------------------------------------------------------
+#
+# This project is rendered from python.tpl. `git tpl update` advances
+# refs/tpl/<id> and touches nothing else — not HEAD, not the index, not the
+# worktree — so running it is always safe and never a decision. The changes
+# arrive only when you merge:
+#
+#   mise run tpl:check       # has it moved?
+#   mise run tpl:update      # bring the rendered ref up to date
+#   mise run tpl:diff        # read what merging it would change
+#   git tpl merge            # take it
+
+[tasks."tpl:update"]
+description = "Re-render the template into refs/tpl/<id> (leaves the worktree alone)"
+raw_args = true
+run = "git tpl update"
+
+[tasks."tpl:diff"]
+description = "Show what merging the template would change"
+raw_args = true
+run = "git tpl diff"
+
+[tasks."tpl:check"]
+description = "Has the template moved? Exits 1 if merging it would change anything"
+# `update` first, because a fresh clone has no `refs/tpl/*` — neither
+# `git clone` nor `actions/checkout` fetches them — and `update` creates the
+# ref rather than failing, so this works anywhere.
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+git tpl update
+git tpl diff --exit-code --stat
+"""
+
+# --- project-specific tasks ---------------------------------------------------
+#
+# Add your own tasks below this line. The template owns everything above it and
+# will keep updating it; everything here is yours, and Git's 3-way merge
+# preserves it across `git tpl update`.
+#
+# Open any multi-line `run` block with `#!/usr/bin/env bash`. Without one mise
+# runs it through `sh`, which is dash on a GitHub runner — `set -o pipefail`
+# errors there and `< <(...)` is a syntax error — while `/bin/sh` is often bash
+# locally. The difference does not show up until CI.

@@ -1,0 +1,60 @@
+# The middle stack, every slot on.
+#
+# Its whole reason to exist is that `pdm-uv` differs from `pdm` in exactly one
+# rendered file and two lines elsewhere. If that stops being true — if a
+# conditional starts branching on `stack == 'pdm'` where it means `is_pdm` —
+# this case is what says so.
+
+[answers]
+distribution = "pdm-uv-example"
+package = "pdm_uv_example"
+description = "PDM with the uv resolver, every slot on"
+owner = "noirbizarre"
+author_name = "Axel H."
+author_email = "noirbizarre@gmail.com"
+copyright_holder = "Axel H."
+copyright_year = 2026
+keywords = "python, example"
+stack = "pdm-uv"
+python_min = "3.10"
+cli = true
+cli_name = "pdm-uv-example"
+docs = true
+docs_accent = "indigo"
+pypi = true
+codecov = true
+gh_ship = true
+
+[expect]
+files = [
+  # The one file that exists on this stack and on neither of the others.
+  "pdm.toml",
+  "pyproject.toml",
+  "zensical.toml",
+  ".github/workflows/prepare-release.yaml",
+]
+absent = [".github/workflows/release.yaml"]
+
+[expect.contains]
+"pdm.toml" = ["use_uv = true"]
+# The differentiator is the resolver and nothing else: the backend, the task
+# host and the version provider are all the PDM stack's.
+"pyproject.toml" = [
+  'build-backend = "pdm.backend"',
+  "[tool.pdm.scripts]",
+  'version_provider = "scm"',
+  'dynamic = ["version"]',
+]
+"mise.toml" = ['pdm = "latest"', 'uv = "latest"', 'run = "pdm run test"']
+"prek.toml" = ["pdm lock --check"]
+# CI needs uv on PATH for PDM to resolve through it, and PDM pointed at uv's
+# interpreters so the matrix version is the one actually used.
+".github/workflows/ci.yaml" = [
+  "pdm install -G test",
+  "astral-sh/setup-uv",
+  "pdm config python.install_root",
+]
+".github/workflows/publish-release.yaml" = ["pdm build"]
+# `.gitignore` re-includes pdm.toml, which a global ignore would otherwise
+# hide — the file is committed on purpose and only on this stack.
+".gitignore" = ["!pdm.toml"]

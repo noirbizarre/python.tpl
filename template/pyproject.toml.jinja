@@ -1,0 +1,294 @@
+{% import "macros/python.jinja" as py %}
+{#- The alias is `py`, not `python`: an import binds its name in the same
+    namespace as the answers, so a collision silently shadows one of them. -#}
+[project]
+name = "{{ distribution }}"
+description = "{{ description }}"
+authors = [{ name = "{{ author_name }}", email = "{{ author_email }}" }]
+readme = "README.md"
+# PEP 639, not the `license = { text = "MIT" }` table the previous generation
+# of this template used: that form is deprecated, and the `License ::`
+# classifier it implies is now rejected on upload to PyPI.
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">={{ python_min }}"
+keywords = [{% for keyword in keywords | split(',') %}"{{ keyword | trim }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+{{- py.classifiers() }}
+    "Typing :: Typed",
+]
+{%- if is_pdm %}
+# pdm-backend reads the version from the SCM tag, so it is dynamic here and
+# there is no string for anything to get out of sync with.
+dynamic = ["version"]
+{%- else %}
+# uv_build has no SCM version source, so the version is a literal that
+# commitizen rewrites on bump. That and `version_provider = "pep621"` in
+# [tool.commitizen] are one decision, not two.
+version = "0.1.0"
+{%- endif %}
+
+{%- if cli %}
+dependencies = [
+    # Seeded once, then yours: Dependabot bumps it in your repository, and this
+    # template will not propagate a version back over the top of that.
+    "cyclopts>=4.0",
+]
+{%- else %}
+dependencies = []
+{%- endif %}
+{% if cli %}
+[project.scripts]
+{{ cli_name }} = "{{ package }}.cli:app"
+{% endif %}
+[project.urls]
+Homepage = "{{ repo_url }}"
+{%- if docs %}
+Documentation = "{{ docs_url }}"
+{%- else %}
+Documentation = "{{ repo_url }}#readme"
+{%- endif %}
+Repository = "{{ repo_url }}"
+Issues = "{{ repo_url }}/issues"
+Changelog = "{{ repo_url }}/blob/main/CHANGELOG.md"
+
+
+# --- Build --------------------------------------------------------------------
+
+[build-system]
+{%- if is_pdm %}
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+{%- else %}
+# The narrow range is the form `uv init` itself generates, and it is
+# deliberate: uv_build's version tracks uv's, and a build backend newer than
+# the range has, more than once, changed what it does with `module-root`.
+# Dependabot bumps it, and `uv sync` warns when the local uv falls outside it —
+# which is the signal to take that bump.
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+{%- endif %}
+{% if is_pdm %}
+[tool.pdm.build]
+package-dir = "src"
+
+[tool.pdm.version]
+# The tag is the version. There is no string in this file to forget to bump,
+# and `cz bump` with `version_provider = "scm"` tags without editing anything.
+source = "scm"
+# Without this, a freshly created project cannot be installed at all: `source =
+# "scm"` fails hard when there is no tag to read, and a project has no tags
+# until its first release. `pdm install` in a brand new repository would end in
+# a build error about `PDM_BUILD_SCM_VERSION`, which is a poor first impression
+# and not a real problem — the version simply is not known yet.
+fallback_version = "0.0.0"
+# Written into the built distribution, never into the worktree — this path does
+# not exist in Git and must not be committed. It is in .gitignore.
+write_to = "{{ package }}/VERSION"
+write_template = "{}"
+{%- else %}
+[tool.uv.build-backend]
+module-name = "{{ package }}"
+module-root = "src"
+
+[tool.uv]
+# The default, stated: a bare `uv sync` installs the project itself, which is
+# what makes `pytest` import `{{ package }}` from src rather than from nowhere.
+package = true
+{%- endif %}
+
+
+# --- Dependencies -------------------------------------------------------------
+
+[dependency-groups]
+# `dev` is what a contributor installs. Every other group is a slice CI uses on
+# its own, so the lint job does not install pytest and the test job does not
+# install ty. Group names are spelled the same everywhere — `docs`, never
+# `doc`, which is the mismatch that broke Read the Docs in the previous
+# attempt.
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+{%- if docs %}
+    { include-group = "docs" },
+{%- endif %}
+    { include-group = "release" },
+]
+
+test = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-sugar>=1.0",
+    "coverage[toml]>=7.6",
+]
+
+lint = [
+    "ruff>=0.14",
+    # Astral's type checker. Not mypy: one vendor for the linter, the formatter
+    # and the checker means one release cadence and one set of semantics.
+    #
+    # A floor at the current release rather than an open one, because ty is
+    # pre-1.0 and its rule set still moves between patch versions — an older ty
+    # would accept code this project's CI rejects, which is the wrong way round.
+    "ty>=0.0.72",
+]
+{% if docs %}
+docs = [
+    "zensical>=0.0.56",
+    "mkdocstrings-python>=1.12",
+]
+{% endif %}
+release = [
+    "commitizen>=4.0",
+    # `emotional` is a commitizen rule set: Conventional Commits with emoji
+    # changelog sections. Installed rather than fetched at release time, so
+    # `mise run changelog` locally and the release workflow produce the same
+    # file from the same commits.
+    "emotional>=0.5",
+]
+
+{% if is_pdm %}
+# --- Tasks --------------------------------------------------------------------
+#
+# PDM is the task host on this stack, so mise.toml carries the toolchain and a
+# handful of thin delegations. On the `uv` stack these live in mise.toml
+# instead. There is exactly one task host per project — two is how `pdm run
+# test` and `mise run test` end up meaning different things.
+
+[tool.pdm.scripts]
+test.help = "Run the test suite"
+test.cmd = "pytest"
+
+cover.help = "Run the test suite with coverage"
+cover.cmd = "pytest --cov --cov-report=term-missing --cov-report=xml:coverage.xml"
+
+lint.help = "Lint the code"
+lint.cmd = "ruff check src tests"
+
+format.help = "Format the code and sort imports"
+format.composite = [
+    # Import sorting first: `ruff format` does not sort, and running it
+    # afterwards would leave the files needing a second pass.
+    "ruff check --select I --fix-only src tests",
+    "ruff format src tests",
+]
+
+"format:check".help = "Check the formatting without rewriting"
+"format:check".cmd = "ruff format --check src tests"
+
+typecheck.help = "Type-check the code"
+typecheck.cmd = "ty check src tests"
+{% if docs %}
+"docs:build".help = "Build the documentation site"
+"docs:build".cmd = "zensical build"
+
+"docs:serve".help = "Serve the documentation locally, with live reload"
+"docs:serve".cmd = "zensical serve"
+{% endif %}
+changelog.help = "Preview the changelog for the unreleased commits"
+changelog.cmd = "cz changelog --unreleased-version NEXT --dry-run"
+
+ci.help = "Everything CI runs, locally"
+ci.composite = ["format:check", "lint", "typecheck", "cover"{% if docs %}, "docs:build"{% endif %}]
+
+# --- project-specific scripts -------------------------------------------------
+#
+# Add your own below this line.
+
+{% endif %}
+# --- Tooling ------------------------------------------------------------------
+
+[tool.ruff]
+line-length = {{ line_length }}
+target-version = "{{ ruff_target }}"
+src = ["src"]
+respect-gitignore = true
+show-fixes = true
+
+[tool.ruff.lint]
+select = [
+    "F",       # pyflakes
+    "E", "W",  # pycodestyle
+    "I",       # isort
+    "UP",      # pyupgrade
+    "B",       # flake8-bugbear
+    "C4",      # flake8-comprehensions
+    "RUF",     # ruff's own
+]
+extend-safe-fixes = ["UP", "C4"]
+
+[tool.ruff.lint.per-file-ignores]
+# A package's `__init__` re-exports; that is what it is for.
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["{{ package }}"]
+lines-between-types = 1
+
+[tool.ty.environment]
+# The floor, not the newest. Type-checking against the oldest supported version
+# is what catches a {{ python_max }}-only construct slipping into a package that
+# claims {{ python_min }} — which no amount of testing on {{ python_max }} will.
+python-version = "{{ python_min }}"
+root = ["./src"]
+
+[tool.ty.rules]
+# Deliberately empty. Every suppression added here should name the rule and say
+# which release of ty made it necessary, so a later upgrade can retire it.
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+norecursedirs = [".git", "build", "dist"{% if docs %}, "site"{% endif %}]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "tests/*",
+{%- if cli %}
+    # A `__main__` is a two-line dispatcher behind an `if __name__` guard: it
+    # cannot be imported without running, and running it is what the CLI tests
+    # already do through `app`. Measuring it reports 0% for code that has no
+    # behaviour of its own.
+    "*/__main__.py",
+{%- endif %}
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+show_missing = true
+
+[tool.commitizen]
+# `emotional` rather than `cz_conventional_commits`: the same grammar, emoji
+# changelog sections, and it knows how to render the links to {{ owner }}/{{ distribution }}.
+name = "emotional"
+github = "{{ owner }}/{{ distribution }}"
+order_by_scope = true
+{%- if is_pdm %}
+# pdm-backend derives the version from the tag, so the tag is the only place it
+# lives and `cz bump` has no file to rewrite.
+{%- else %}
+# uv_build has no SCM source, so `cz bump` rewrites `project.version` above —
+# and the release workflow runs `uv lock` afterwards, because uv.lock records
+# the version it just changed.
+{%- endif %}
+version_provider = "{{ version_source }}"
+update_changelog_on_bump = true
+# Remove this line for the first 1.x release.
+major_version_zero = true
+
+# --- project-specific ---------------------------------------------------------
+#
+# Add dependencies, tool configuration{% if is_pdm %} and scripts{% endif %} below this line. The
+# template owns everything above it and will keep updating it; everything here
+# is yours, and Git's 3-way merge preserves it across `git tpl update`.

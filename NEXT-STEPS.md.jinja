@@ -1,0 +1,92 @@
+# {{ distribution }} is ready
+
+git-tpl renders files and executes nothing (ADR-019), so three things are left
+to you.
+
+## 1. Install
+
+```bash
+cd {{ distribution }}
+mise install
+mise run install
+prek install --install-hook-types pre-commit,commit-msg
+```
+
+Then commit the lockfile that step produced — `{% if is_pdm %}pdm.lock{% else %}uv.lock{% endif %}` and `mise.lock`
+are both part of the repository.
+
+## 2. Push
+
+The `origin` remote is already set to
+`git@github.com:{{ owner }}/{{ distribution }}.git`. Create the repository, then:
+
+```bash
+git push -u origin main
+```
+{% if gh_ship %}
+## 3. Configure the release
+
+The gh-ship flow needs three things GitHub cannot infer:
+
+- **A GitHub App** with `contents: write`, `pull-requests: write` and
+  `actions: write`, installed on this repository. Put its client id in the
+  `release` environment as the variable `APP_CLIENT_ID` and its private key as
+  the secret `APP_PRIVATE_KEY`.
+- **Squash-merge settings**: `Default commit message` → `Pull request title`,
+  with a blank body. The Release PR's title is a Conventional Commit and the
+  `commit-msg` hook checks it; a default GitHub squash message is not one.
+- **A `release` environment**, which is where both of the above live.
+{% if pypi %}
+## 4. Configure PyPI
+
+Trusted Publishing, so no token is ever stored. On PyPI, add a publisher for:
+
+| Field | Value |
+| --- | --- |
+| Repository | `{{ owner }}/{{ distribution }}` |
+| Workflow | `publish-release.yaml` |
+| Environment | `release` |
+
+The workflow filename is part of the trust policy — renaming the file breaks
+publishing until PyPI is updated.
+{% endif %}
+{%- else %}
+## 3. Configure the release
+
+The 🚀 Release workflow needs:
+
+- **A `release` environment** holding a `PAT` secret: a personal access token
+  with `contents: write`. The default `GITHUB_TOKEN` cannot be used, because a
+  push authenticated with it triggers no workflows — the tag would never build
+  anything.
+{% if pypi %}
+## 4. Configure PyPI
+
+Trusted Publishing, so no token is ever stored. On PyPI, add a publisher for:
+
+| Field | Value |
+| --- | --- |
+| Repository | `{{ owner }}/{{ distribution }}` |
+| Workflow | `release.yaml` |
+| Environment | `release` |
+
+The workflow filename is part of the trust policy — renaming the file breaks
+publishing until PyPI is updated.
+{% endif %}
+{%- endif %}
+{% if codecov %}
+## And Codecov
+
+Add the repository on Codecov and put the upload token in the repository
+secrets as `CODECOV_TOKEN`.
+{%- endif %}
+{% if docs %}
+## And GitHub Pages
+
+Settings → Pages → Source: **GitHub Actions**. The 📚 Documentation workflow
+deploys on every push to `main` that touches `docs/` or `zensical.toml`.
+{%- endif %}
+
+---
+
+Everything else is in [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -1,0 +1,24 @@
+# {{ distribution }}
+
+{{ description }}
+
+## Installation
+{% if pypi %}
+```bash
+pip install {{ distribution }}
+```
+{% else %}
+```bash
+pip install git+{{ repo_url }}
+```
+{% endif %}
+{%- if cli %}
+## Usage
+
+```bash
+{{ cli_name }} --help
+```
+{% endif %}
+## Reference
+
+The [API reference](api.md) is generated from the docstrings in the source.

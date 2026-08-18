@@ -1,0 +1,25 @@
+"""The `{{ cli_name }}` command-line interface."""
+
+from __future__ import annotations
+
+import cyclopts
+
+from {{ package }} import __version__
+
+app = cyclopts.App(
+    name="{{ cli_name }}",
+    help="{{ description }}",
+    version=__version__,
+)
+
+
+@app.command
+def hello(name: str = "world") -> None:
+    """Say hello.
+
+    Parameters
+    ----------
+    name
+        Who to greet.
+    """
+    print(f"Hello, {name}!")

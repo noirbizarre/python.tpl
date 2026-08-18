@@ -1,0 +1,74 @@
+# The uv stack with nothing optional except the release flow.
+#
+# `gh_ship = true` here and `false` in uv-full is deliberate: it crosses the
+# stack fork with the release fork rather than correlating them, so a
+# `{% if is_pdm %}` nested inside a `{% if gh_ship %}` file cannot pass both
+# cases quietly. That is the shape of conditional the previous generation of
+# this template got wrong and never noticed.
+
+[answers]
+distribution = "uv-minimal-example"
+package = "uv_minimal_example"
+description = "uv stack, gh-ship, nothing else"
+owner = "noirbizarre"
+author_name = "Axel H."
+author_email = "noirbizarre@gmail.com"
+copyright_holder = "Axel H."
+copyright_year = 2026
+keywords = "python"
+stack = "uv"
+python_min = "3.12"
+cli = false
+docs = false
+pypi = false
+codecov = false
+gh_ship = true
+
+[expect]
+files = [
+  "pyproject.toml",
+  "mise.toml",
+  "prek.toml",
+  ".github/ship.yml",
+  ".github/workflows/ship.yaml",
+  ".github/workflows/prepare-release.yaml",
+  ".github/workflows/publish-release.yaml",
+]
+absent = [
+  # The other release shape must not co-exist with the gh-ship one.
+  ".github/workflows/release.yaml",
+  # pdm-uv only
+  "pdm.toml",
+  ".github/codecov.yml",
+  "zensical.toml",
+  "docs/index.md",
+  "src/uv_minimal_example/cli.py",
+]
+
+[expect.contains]
+"pyproject.toml" = [
+  'build-backend = "uv_build"',
+  # Static, because uv_build has no SCM version source. The mirror of the PDM
+  # cases' `dynamic = ["version"]` — one of the two must be true and never
+  # both, and asserting each in its own case is what proves it.
+  'version = "0.1.0"',
+  'version_provider = "pep621"',
+  'requires-python = ">=3.12"',
+  'target-version = "py312"',
+]
+# The task host is mise on this stack, so the tasks are real rather than
+# delegations, and pyproject has no scripts table.
+"mise.toml" = ["uv run --group test pytest", "uv run --group lint ty check"]
+"prek.toml" = ["uv lock --check", "uv run --group release cz check"]
+".github/workflows/ci.yaml" = ["uv sync --group test", '"3.12", "3.13", "3.14"']
+# `pep621` means the bump rewrites pyproject, so uv.lock records a version that
+# has just moved and has to be refreshed in the same commit.
+".github/workflows/prepare-release.yaml" = [
+  "uv run --group release cz",
+  "uv lock",
+  "--files-only",
+  "ship.release.json",
+]
+".github/workflows/publish-release.yaml" = ["uv build"]
+# No PyPI job without `pypi`, even though the publish workflow exists.
+"README.md" = ["img.shields.io/github/v/release"]

@@ -1,0 +1,104 @@
+# Contributing to {{ distribution }}
+
+## Setup
+
+The toolchain is declared in `mise.toml` and pinned in `mise.lock`, so the only
+prerequisite is [mise](https://mise.jdx.dev) itself:
+
+```bash
+mise install
+mise run install
+prek install --install-hook-types pre-commit,commit-msg
+```
+
+`mise run install` creates `.venv` and installs the project with every
+dependency group. `prek install` wires the hooks — until you run it, nothing
+checks your commits locally and CI is the first thing that will.
+
+## The loop
+
+```bash
+mise run test          # the test suite
+mise run cover         # ... with coverage
+mise run lint          # ruff
+mise run format        # ruff, rewriting
+mise run typecheck     # ty
+mise run ci            # everything ♻️ CI runs
+```
+{% if is_pdm %}
+PDM is the task host on this project: `mise run test` delegates to
+`pdm run test`, and `pdm run --list` shows the full set. The mise tasks exist
+so that the same commands work in every project regardless of which stack it
+chose.
+{% else %}
+mise is the task host on this project: `mise tasks` shows the full set. Every
+task goes through `uv run`, which syncs the environment first — so a task
+cannot silently run against a stale `.venv`.
+{% endif %}
+## Commits
+
+Conventional Commits, validated on `commit-msg` by `cz check` with the
+[emotional](https://github.com/noirbizarre/emotional) rule set. The same rule
+set writes `CHANGELOG.md` at release time, so the subject you write is the
+changelog entry your users read.
+
+```
+feat(parser): support nested blocks
+fix: do not swallow the underlying error
+docs: explain the {{ package }} entry point
+```
+
+`mise run changelog` previews what the unreleased commits would produce.
+
+## Type checking
+
+`ty` runs against Python {{ python_min }}, the minimum this package supports,
+not against the interpreter you happen to have. A construct that only exists in
+a later version is an error here even though it runs fine on your machine —
+that is the check working.
+
+## Tests
+
+`tests/`, pytest, `src/` layout. Coverage is reported but not gated locally;
+{% if codecov %}Codecov holds new code to 80%{% else %}the project sets no hard floor{% endif %}.
+{% if docs %}
+## Documentation
+
+```bash
+mise run docs:serve
+```
+
+The navigation lives in `zensical.toml`. Every entry must point at a file that
+exists — a missing page fails the build, which is deliberate.
+{% endif %}
+## Releasing
+{% if gh_ship %}
+Releases are prepared automatically. Every push to `main` runs 🚢 Ship, which
+dispatches `prepare-release`; if there are releasable commits it opens or
+updates a Release PR titled `chore(release): X` containing the version bump and
+the changelog. Review it and merge — the rest is automatic: the merge commit is
+tagged, the release is drafted, the artifacts are attached{% if pypi %}, the
+distribution is published to PyPI{% endif %}, and the release is made public.
+
+Do not push to `release/next` by hand; it is moved on every prepare and
+anything else on it is discarded.
+{% else %}
+Releases are dispatched by hand. Run the 🚀 Release workflow from the Actions
+tab; leave `increment` blank to let commitizen derive it from the commits since
+the last tag. It refuses to run unless ♻️ CI is green on the commit being
+released.
+{% endif %}
+## This project is generated from a template
+
+It is rendered from [python.tpl](https://github.com/noirbizarre/python.tpl).
+When the template moves, 🔄 Template notices within a week:
+
+```bash
+mise run tpl:check     # has it moved?
+mise run tpl:diff      # what would merging it change?
+git tpl merge          # take it
+```
+
+Anything you add below a `# --- project-specific ---` marker in
+`pyproject.toml`, `mise.toml` or `prek.toml` survives that merge. Anything you
+change *above* one will conflict, on purpose — those lines are the template's.
