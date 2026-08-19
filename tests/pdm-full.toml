@@ -67,6 +67,7 @@ absent = [
   # 3.10 is below the floor and must not appear in the classifiers, even though
   # it is in data/python.toml.
   '"Programming Language :: Python :: 3.11"',
+  '"docs:build".cmd = "zensical build"',
 ]
 # The matrix, the classifiers and requires-python all move together.
 ".github/workflows/ci.yaml" = [
@@ -74,7 +75,9 @@ absent = [
   "codecov-action",
   "gh ship validate",
 ]
-"mise.toml" = ['run = "pdm run docs:build"']
+# Every task is a PDM script, the docs ones included, and mise.toml stays a
+# toolchain file.
+".github/workflows/docs.yaml" = ["pdm install -G docs", "pdm run docs:build"]
 "zensical.toml" = [
   'accent = "deep orange"',
   'site_url = "https://noirbizarre.github.io/full-example/"',

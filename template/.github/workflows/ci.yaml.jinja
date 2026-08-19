@@ -80,7 +80,7 @@ jobs:
       # {{ python_min }} — the matrix below runs the tests on {{ python_min }},
       # but a test suite only exercises the code paths it happens to reach.
       - name: Type-check
-        run: mise run typecheck
+        run: {{ cmd.task("typecheck") }}
 {%- raw %}
 
   test:

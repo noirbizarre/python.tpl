@@ -1,13 +1,25 @@
-# Toolchain and, on the `uv` stack, tasks.
+{% if is_pdm -%}
+# The toolchain, and only the toolchain.
+#
+# There are no tasks in this file. PDM is this project's task host — the tasks
+# are `[tool.pdm.scripts]` in pyproject.toml, and `pdm run --list` shows them.
+#
+# mise could delegate to them (`run = "pdm run test"`), and deliberately does
+# not: a delegation layer gives every task two names, two places to look when
+# it misbehaves, and two chances to go stale against each other. A project has
+# one task host. Here it is PDM, and mise's job is to put the right pdm, the
+# right Python and the right prek on PATH before it runs.
+{%- else -%}
+# The toolchain and the tasks.
+#
+# mise is this project's task host: the tasks are `[tasks.*]` below, and
+# `mise tasks` shows them. pyproject.toml has no scripts table and should not
+# grow one — a project has one task host, and two is how `uv run pytest` and
+# `mise run test` come to mean different things.
+{%- endif %}
 #
 # Tool versions resolve to exact builds in `mise.lock`, which is committed, so
-# `mise run ci` locally and the CI workflow run identical tool versions.
-#
-# There is exactly one task host per project. On the PDM stacks it is
-# `[tool.pdm.scripts]` in pyproject.toml and the tasks here are thin
-# delegations; on the `uv` stack it is this file and pyproject has no scripts
-# table at all. Two task hosts is how `pdm run test` and `mise run test` end up
-# meaning different things.
+# `{% if is_pdm %}pdm run ci{% else %}mise run ci{% endif %}` locally and the CI workflow run identical tool versions.
 
 [settings]
 # Resolve tools through mise.lock and keep it updated. Without this the
@@ -51,76 +63,29 @@ cargo-binstall = "latest"
 
 [env]
 # The virtualenv every task runs in, created on first use. This is what makes a
-# bare `pytest` in an interactive shell work without `pdm run` or `uv run`.
+# bare `pytest` in an interactive shell work without `{% if is_pdm %}pdm{% else %}uv{% endif %} run`.
 _.python.venv = { path = ".venv", create = true }
-
+{% if is_pdm %}
+# --- project-specific ---------------------------------------------------------
+#
+# Add tools below this line, and tasks to `[tool.pdm.scripts]` in
+# pyproject.toml. The template owns everything above; everything here is yours,
+# and Git's 3-way merge preserves it across `git tpl update`.
+{%- else %}
 # --- Everyday -----------------------------------------------------------------
 #
 # `mise <task>` is shorthand for `mise tasks run <task>`, and a builtin
 # subcommand of the same name wins it silently — `mise fmt` formats mise.toml
 # rather than running the formatter, and says nothing about the task it
 # shadowed. Use `mise run <task>` in scripts and workflows, always.
-
-[tasks.install]
-description = "Install the project and every dependency group"
-{%- if is_pdm %}
-run = "pdm install -G:all"
-{%- else %}
-run = "uv sync --all-groups"
-{%- endif %}
-{% if is_pdm %}
-# On this stack PDM owns the tasks. These exist so that `mise run test` means
-# the same thing in every project rendered from this template, whichever stack
-# it chose — the CI workflows and the muscle memory are then identical, and the
-# stack becomes an implementation detail rather than a dialect.
-
-[tasks.test]
-description = "Run the test suite"
-# `raw_args` so selectors and flags reach pytest: `mise run test -k parser`.
-raw_args = true
-run = "pdm run test"
-
-[tasks.cover]
-description = "Run the test suite with coverage"
-run = "pdm run cover"
-
-[tasks.lint]
-description = "Lint the code"
-run = "pdm run lint"
-
-[tasks.format]
-description = "Format the code and sort imports"
-run = "pdm run format"
-
-[tasks."format:check"]
-description = "Check the formatting without rewriting"
-run = "pdm run format:check"
-
-[tasks.typecheck]
-description = "Type-check the code"
-run = "pdm run typecheck"
-{% if docs %}
-[tasks."docs:build"]
-description = "Build the documentation site"
-run = "pdm run docs:build"
-
-[tasks."docs:serve"]
-description = "Serve the documentation locally, with live reload"
-run = "pdm run docs:serve"
-{% endif %}
-[tasks.changelog]
-description = "Preview the changelog for the unreleased commits"
-run = "pdm run changelog"
-
-[tasks.ci]
-description = "Everything CI runs, locally"
-run = "pdm run ci"
-{% else %}
-# On this stack mise owns the tasks and pyproject.toml has no scripts table.
 #
 # Every command goes through `uv run`, which syncs the environment first — so a
 # task cannot silently run against a stale venv, which is the failure mode of
 # activating one by hand and forgetting.
+
+[tasks.install]
+description = "Install the project and every dependency group"
+run = "uv sync --all-groups"
 
 [tasks.test]
 description = "Run the test suite"
@@ -167,25 +132,30 @@ run = "uv run --group docs zensical serve"
 description = "Preview the changelog for the unreleased commits"
 run = "uv run --group release cz changelog --unreleased-version NEXT --dry-run"
 
-[tasks.ci]
-description = "Everything CI runs, locally"
-depends = ["format:check", "lint", "typecheck", "cover"{% if docs %}, "docs:build"{% endif %}]
-{% endif %}
-# --- Repository-wide ----------------------------------------------------------
-
 [tasks.spell]
 description = "Check spelling"
 run = "typos"
 
 [tasks."lint:actions"]
 description = "Lint the GitHub Actions workflows"
-# Suppressions live in .github/actionlint.yml rather than as flags here, so
-# this task and the prek hook cannot drift apart.
-run = "actionlint .github/workflows/*.yaml"
+# `-config-file` explicitly, rather than relying on actionlint finding
+# .github/actionlint.yml on its own: it discovers the config by walking up to
+# the *Git repository root*, so it silently applies no suppressions in a
+# freshly rendered tree, a detached worktree, or anywhere the repository has
+# not been initialised yet. Naming the file makes the suppressions apply
+# wherever this runs.
+#
+# Suppressions belong in that file and not as flags here, so this and the prek
+# hook cannot drift apart.
+run = "actionlint -config-file .github/actionlint.yml .github/workflows/*.yaml"
 
 [tasks.hooks]
 description = "Run every prek hook over every file"
 run = "prek run --all-files --show-diff-on-failure"
+
+[tasks.ci]
+description = "Everything CI runs, locally"
+depends = ["format:check", "lint", "typecheck", "cover"{% if docs %}, "docs:build"{% endif %}]
 
 # --- Template -----------------------------------------------------------------
 #
@@ -231,3 +201,4 @@ git tpl diff --exit-code --stat
 # runs it through `sh`, which is dash on a GitHub runner — `set -o pipefail`
 # errors there and `< <(...)` is a syntax error — while `/bin/sh` is often bash
 # locally. The difference does not show up until CI.
+{%- endif %}

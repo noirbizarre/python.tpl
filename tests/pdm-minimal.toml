@@ -87,10 +87,24 @@ absent = [
   # from the same computed list the CI matrix is rendered from.
   '"Programming Language :: Python :: 3.10"',
   '"Programming Language :: Python :: 3.14"',
+  # Every task is a PDM script, including the three that run a mise-installed
+  # binary rather than something in the virtualenv. Splitting a project's tasks
+  # across two runners by which binary they happen to invoke is the two-hosts
+  # problem arriving through the back door.
+  'test.cmd = "pytest"',
+  'spell.cmd = "typos"',
+  '"lint:actions".shell',
+  '"tpl:check".composite',
 ]
-# The task host is PDM on this stack, so mise delegates and names no `uv`
-# anywhere.
-"mise.toml" = ['run = "pdm run test"', 'pdm = "latest"']
+# mise.toml carries tools and nothing else on this stack.
+#
+# `git tpl test` has no negative-substring assertion, so "and defines no tasks"
+# cannot be stated here — a delegating `[tasks.test]` would satisfy every
+# positive assertion above while reintroducing the second task host. That
+# invariant is checked structurally instead, by
+# scripts/check-one-task-host.py in the render job, which parses both files and
+# asserts exactly one of them defines tasks. A better check than any substring.
+"mise.toml" = ['pdm = "latest"', "[tools]"]
 "prek.toml" = ["pdm lock --check", "pdm run cz check"]
 ".github/workflows/ci.yaml" = [
   "pdm install -G test",

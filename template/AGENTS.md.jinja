@@ -8,21 +8,33 @@ accurate. This file records what is easy to get wrong.
 ## Commands
 
 Use the tasks, not the underlying tools — they carry the flags CI uses:
+{% if is_pdm %}
+```bash
+pdm install -G:all  # the environment
+pdm run ci          # format:check, lint, typecheck, cover{% if docs %}, docs:build{% endif %}
+pdm run test -k X   # a subset
+pdm run --list      # everything
+```
 
+**The task host is PDM, and it is the only one.** `[tool.pdm.scripts]` in
+`pyproject.toml` is where every task lives, including `spell`, `lint:actions`
+and the `tpl:*` set. `mise.toml` has no `[tasks]` table and must not grow one —
+not even a delegation. `mise` here installs the toolchain and nothing more.
+{% else %}
 ```bash
 mise run install    # the environment
 mise run ci         # format:check, lint, typecheck, cover{% if docs %}, docs:build{% endif %}
 mise run test -k X  # a subset
+mise tasks          # everything
 ```
-{% if is_pdm %}
-The task host is PDM. `mise run <task>` delegates to `pdm run <task>`; the
-canonical definitions are `[tool.pdm.scripts]` in `pyproject.toml`.
-{% else %}
-The task host is mise. The canonical definitions are `[tasks.*]` in
-`mise.toml`; `pyproject.toml` has no scripts table and should not grow one.
-{% endif %}
+
+**The task host is mise, and it is the only one.** `[tasks.*]` in `mise.toml`
+is where every task lives. `pyproject.toml` has no scripts table and must not
+grow one.
+
 Always `mise run <task>`, never bare `mise <task>`: a mise builtin subcommand
 of the same name wins silently and says nothing about the task it shadowed.
+{% endif %}
 
 ## Constraints that are not obvious
 
@@ -53,7 +65,8 @@ src/{{ package }}/       the package
 tests/                   pytest, mirroring src/
 {% if docs %}docs/                    the documentation site (zensical.toml drives the nav)
 {% endif %}.github/workflows/       CI and release
-mise.toml                toolchain{% if not is_pdm %} and tasks{% endif %}
+mise.toml                the toolchain{% if is_pdm %} — no tasks, by design{% else %} and the tasks{% endif %}
+pyproject.toml           the package{% if is_pdm %}, and the tasks{% endif %}
 prek.toml                the hooks — almost all `local`, running the installed tools
 ```
 
@@ -61,6 +74,10 @@ prek.toml                the hooks — almost all `local`, running the installed
 
 - Add a `.pre-commit-config.yaml`. The hooks live in `prek.toml`; two config
   formats for one runner means one of them is stale.
+- Add a second task host. {% if is_pdm %}A `[tasks.test]` in `mise.toml` that runs
+  `pdm run test`{% else %}A `[tool.pdm.scripts]` table in `pyproject.toml`{% endif %} looks
+  harmless and is not: the render check
+  (`scripts/check-one-task-host.py` in the template) fails the build for it.
 - Add mypy, black, isort or flake8. ruff and ty cover all four, and running two
   linters means arbitrating between them forever.
 - Pin a tool version in `prek.toml` that is already floored in

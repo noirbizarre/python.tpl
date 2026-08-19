@@ -26,6 +26,26 @@ uv sync --group {{ group }}
 {%- endif -%}
 {%- endmacro -%}
 
+{#-
+  Invoke one of the project's own tasks by name.
+
+  The task *host* differs by stack — PDM scripts on the PDM stacks, mise tasks
+  on the uv one — and this is the only macro that knows it. A workflow, a
+  document or a child template names the task; it never names the host.
+
+  There is deliberately no delegation layer bridging the two: a `mise run test`
+  that shells out to `pdm run test` means every task has two names, two places
+  to look and two ways to be stale. One host per project, and this macro to
+  spell it.
+-#}
+{%- macro task(name) -%}
+{%- if is_pdm -%}
+pdm run {{ name }}
+{%- else -%}
+mise run {{ name }}
+{%- endif -%}
+{%- endmacro -%}
+
 {#- Install the project plus every dependency group. -#}
 {%- macro install_all() -%}
 {%- if is_pdm -%}

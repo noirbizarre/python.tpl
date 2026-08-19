@@ -155,10 +155,12 @@ release = [
 {% if is_pdm %}
 # --- Tasks --------------------------------------------------------------------
 #
-# PDM is the task host on this stack, so mise.toml carries the toolchain and a
-# handful of thin delegations. On the `uv` stack these live in mise.toml
-# instead. There is exactly one task host per project — two is how `pdm run
-# test` and `mise run test` end up meaning different things.
+# PDM is this project's task host, and the only one. `mise.toml` carries the
+# toolchain and no tasks at all — a `mise run test` that shelled out to
+# `pdm run test` would give every task two names, two places to look when it
+# misbehaves, and two chances to go stale against each other.
+#
+# `pdm run --list` prints this table with the help strings.
 
 [tool.pdm.scripts]
 test.help = "Run the test suite"
@@ -193,8 +195,60 @@ typecheck.cmd = "ty check src tests"
 changelog.help = "Preview the changelog for the unreleased commits"
 changelog.cmd = "cz changelog --unreleased-version NEXT --dry-run"
 
+# These three run tools mise installed rather than anything in the virtualenv,
+# and they are scripts here anyway: a task is a task, and splitting them across
+# two runners by which binary they happen to invoke is exactly the two-hosts
+# problem this table exists to avoid.
+spell.help = "Check spelling"
+spell.cmd = "typos"
+
+"lint:actions".help = "Lint the GitHub Actions workflows"
+# `shell`, not `cmd`: PDM splits a `cmd` with shlex and never expands a glob,
+# so `*.yaml` would reach actionlint as a literal filename.
+#
+# `-config-file` explicitly, rather than relying on actionlint finding
+# .github/actionlint.yml on its own: it discovers the config by walking up to
+# the *Git repository root*, so it silently applies no suppressions in a
+# freshly rendered tree, a detached worktree, or anywhere the repository has
+# not been initialised yet. Naming the file makes the suppressions apply
+# wherever this runs.
+#
+# Suppressions belong in that file and not as flags here, so this and the prek
+# hook cannot drift apart.
+"lint:actions".shell = "actionlint -config-file .github/actionlint.yml .github/workflows/*.yaml"
+
+hooks.help = "Run every prek hook over every file"
+hooks.cmd = "prek run --all-files --show-diff-on-failure"
+
 ci.help = "Everything CI runs, locally"
 ci.composite = ["format:check", "lint", "typecheck", "cover"{% if docs %}, "docs:build"{% endif %}]
+
+# --- Template -----------------------------------------------------------------
+#
+# This project is rendered from python.tpl. `git tpl update` advances
+# refs/tpl/<id> and touches nothing else — not HEAD, not the index, not the
+# worktree — so running it is always safe and never a decision. The changes
+# arrive only when you merge:
+#
+#   pdm run tpl:check       # has it moved?
+#   pdm run tpl:update      # bring the rendered ref up to date
+#   pdm run tpl:diff        # read what merging it would change
+#   git tpl merge           # take it
+
+"tpl:update".help = "Re-render the template into refs/tpl/<id> (leaves the worktree alone)"
+"tpl:update".cmd = "git tpl update"
+
+"tpl:diff".help = "Show what merging the template would change"
+"tpl:diff".cmd = "git tpl diff"
+
+"tpl:check".help = "Has the template moved? Exits 1 if merging it would change anything"
+# `update` first, because a fresh clone has no `refs/tpl/*` — neither
+# `git clone` nor `actions/checkout` fetches them — and `update` creates the ref
+# rather than failing, so this works anywhere.
+"tpl:check".composite = ["tpl:update", "_tpl:diff-check"]
+# Leading underscore: PDM hides it from `pdm run --list`. It exists only
+# because `tpl:check` needs two commands and `composite` is how PDM spells that.
+"_tpl:diff-check".cmd = "git tpl diff --exit-code --stat"
 
 # --- project-specific scripts -------------------------------------------------
 #

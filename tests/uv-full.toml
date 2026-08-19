@@ -61,6 +61,8 @@ absent = [
   'version = "0.1.0"',
 ]
 "mise.toml" = ["uv run --group docs zensical build"]
+# The mirror of pdm-full: same workflow, the other task host.
+".github/workflows/docs.yaml" = ["uv sync --group docs", "mise run docs:build"]
 "zensical.toml" = ['accent = "teal"']
 # No release badge without gh-ship; the rest are all on.
 "README.md" = ["pypi/v/uv-full-example", "codecov.io", "docs-noirbizarre.github.io"]

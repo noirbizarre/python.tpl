@@ -8,9 +8,15 @@ to you.
 ```bash
 cd {{ distribution }}
 mise install
-mise run install
+{% if is_pdm %}pdm install -G:all{% else %}mise run install{% endif %}
 prek install --install-hook-types pre-commit,commit-msg
 ```
+{% if is_pdm %}
+PDM is this project's task host — `pdm run --list` shows the tasks. `mise.toml`
+carries the toolchain and nothing else.
+{% else %}
+mise is this project's task host — `mise tasks` shows them.
+{% endif %}
 
 Then commit the lockfile that step produced — `{% if is_pdm %}pdm.lock{% else %}uv.lock{% endif %}` and `mise.lock`
 are both part of the repository.

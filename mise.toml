@@ -68,6 +68,9 @@ run = "typos"
 
 [tasks."lint:actions"]
 description = "Lint this repository's own workflows"
+# There is no .github/actionlint.yml here — this repository's own workflows
+# need no suppressions. The rendered projects do, and their task names the file
+# explicitly; see the comment in template/mise.toml.jinja for why.
 run = "actionlint .github/workflows/*.yaml"
 
 [tasks.hooks]
@@ -117,6 +120,12 @@ cd "$out"
 # a declared dependency, because pyyaml is needed for four seconds a year.
 echo "==> Parsing the rendered configuration"
 uv run --no-project --with pyyaml -- python "$MISE_PROJECT_ROOT/scripts/parse-rendered.py"
+
+# One task host, whichever it is. `git tpl test` cannot express this: there is
+# no negative-substring assertion, so a delegating `[tasks.test]` in mise.toml
+# would satisfy every positive assertion the cases make about that file.
+echo "==> Checking the task host"
+python3 "$MISE_PROJECT_ROOT/scripts/check-one-task-host.py"
 
 echo "==> actionlint"
 actionlint -config-file .github/actionlint.yml .github/workflows/*.yaml

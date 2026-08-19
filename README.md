@@ -46,13 +46,24 @@ install step, and where the version lives.
 | --- | --- | --- | --- |
 | Resolver | PDM | uv | uv |
 | Backend | `pdm-backend` | `pdm-backend` | `uv_build` |
-| Tasks | `[tool.pdm.scripts]` | `[tool.pdm.scripts]` | `mise.toml` |
+| Task host | `[tool.pdm.scripts]` | `[tool.pdm.scripts]` | `mise.toml` |
 | Lockfile | `pdm.lock` | `pdm.lock` | `uv.lock` |
 | Version | the Git tag | the Git tag | `project.version` |
 
-`mise run test` means the same thing in all three. On the PDM stacks the mise
-tasks are thin delegations to `pdm run`, so the stack is an implementation
-detail rather than a dialect a contributor has to learn.
+**One task host per project, and no shim between them.** On the PDM stacks
+every task is a PDM script — `test`, `ci`, `spell`, `lint:actions`, the `tpl:*`
+set — and `mise.toml` carries the toolchain with no `[tasks]` table at all. On
+the uv stack it is the other way round.
+
+A delegating `[tasks.test] run = "pdm run test"` is the tempting middle ground
+and is exactly what is ruled out: it gives every task two names, two places to
+look when it misbehaves, and two chances to go stale against each other.
+`scripts/check-one-task-host.py` fails the render check if either file grows
+the other's tasks.
+
+The workflows never name the host. They call the `task()` macro in
+[`macros/commands.jinja`](macros/commands.jinja), which is the only place that
+knows which stack puts tasks where.
 
 ## The optional slots
 

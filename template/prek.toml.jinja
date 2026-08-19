@@ -48,13 +48,20 @@ hooks = [
 [[repos]]
 repo = "local"
 
-# Suppressions are configured in .github/actionlint.yml, not here: the same
-# file serves `mise run lint:actions`, so the two cannot disagree.
+# `-config-file` explicitly, rather than relying on actionlint finding
+# .github/actionlint.yml on its own: it discovers the config by walking up to
+# the *Git repository root*, so it silently applies no suppressions in a
+# freshly rendered tree, a detached worktree, or anywhere the repository has
+# not been initialised yet. Naming the file makes the suppressions apply
+# wherever this runs.
+#
+# Suppressions belong in that file and not as flags here, so this and the prek
+# hook cannot drift apart.
 [[repos.hooks]]
 id = "actionlint"
 name = "actionlint"
 language = "system"
-entry = "actionlint"
+entry = "actionlint -config-file .github/actionlint.yml"
 files = "^\\.github/workflows/.*\\.ya?ml$"
 
 [[repos.hooks]]
