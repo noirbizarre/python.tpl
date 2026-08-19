@@ -56,9 +56,12 @@ actionlint = "latest"
 # `ubi:`, which install it fine but write no lockfile URLs. It is not a source
 # build: git-tpl ships binstall metadata, so this is a download.
 #
-# An explicit version, never `latest`: mise applies a `minimum_release_age`, so
-# `latest` resolves to whatever is old enough rather than to the newest release.
-"cargo:git-tpl" = "0.6.0"
+# `latest`, like every other tool here. `[settings] lockfile = true` above
+# resolves it once and records the exact build in mise.lock, so the version is
+# pinned where a version belongs and `mise up` is how it moves. A version here
+# as well would only be a second thing to bump, and the one that gets forgotten
+# is the one that makes 🔄 Template stop reporting drift.
+"cargo:git-tpl" = "latest"
 cargo-binstall = "latest"
 
 [env]

@@ -32,11 +32,12 @@ python = "3.14"
 uv = "latest"
 pdm = "latest"
 cargo-binstall = "latest"
-# An explicit version, never `latest`: mise applies a `minimum_release_age`, so
-# `latest` resolves to whatever is old enough rather than to the newest
-# release. This is also the version the rendered `mise.toml.jinja` pins —
-# bump both together.
-"cargo:git-tpl" = "0.6.0"
+# `latest`, like every other tool here. `[settings] lockfile = true` above
+# resolves it once and records the exact build in mise.lock, so the version is
+# pinned where a version belongs and `mise up` is how it moves. A second pin in
+# this file would only be a second thing to bump — and the one in rust.tpl sat
+# two releases stale while its comment said it was deliberate.
+"cargo:git-tpl" = "latest"
 
 [tasks.default]
 description = "Lint the template, then check every case renders what it should"
