@@ -1,9 +1,6 @@
-# The uv stack, every slot on, and the *manual* release flow.
-#
-# The counterpart to uv-minimal: same stack, opposite release model. Between
-# the two, every branch of `gh_ship` is rendered on the uv stack, and between
-# these and the pdm cases every combination of the two forks that matters is
-# covered without a five-by-two matrix.
+# uv with all features and manual release, opposite to uv-minimal's release flow.
+snapshot = true
+git = true
 
 [answers]
 distribution = "uv-full-example"
@@ -26,60 +23,24 @@ codecov = true
 gh_ship = false
 
 [expect]
-files = [
-  ".editorconfig",
-  ".markdownlint-cli2.yaml",
-  ".github/workflows/release.yaml",
-  ".github/workflows/docs.yaml",
-  ".github/codecov.yml",
-  "zensical.toml",
-  "src/uv_full_example/cli.py",
-]
-absent = [
-  ".github/ship.yml",
-  ".github/workflows/ship.yaml",
-  ".github/workflows/prepare-release.yaml",
-  ".github/workflows/publish-release.yaml",
-  "pdm.toml",
-]
+absent = [".github/workflows/prepare-release.yaml", "pdm.toml"]
 
 [expect.contains]
-# The manual release workflow has to carry the uv stack's build and its relock
-# — the two places `is_pdm` reaches inside a file that only exists when
-# `gh_ship` is false. Nothing else in the suite renders that combination.
-".github/workflows/release.yaml" = [
-  "uv build",
-  "uv lock",
-  "need-checks",
-  "commitizen-action",
-  "gh-action-pypi-publish",
-  "id-token: write",
-]
-# The command name may differ from the distribution name, and the entry point
-# has to follow the command rather than the distribution.
-"pyproject.toml" = [
-  '[project.scripts]',
-  'uv-full = "uv_full_example.cli:app"',
-  'version = "0.1.0"',
-  '"rich>=14.0"',
-]
-"src/uv_full_example/cli.py" = [
-  'console = Console()',
-  'error_console = Console(stderr=True)',
-  'console=console,',
-  'error_console=error_console,',
-  'cyclopts.config.Env("UV_FULL_", command=False)',
-  'install_rich_traceback(console=error_console)',
-]
-"mise.toml" = [
-  "uv run --group docs zensical build",
-  "[hooks]",
-  "prek install --install-hook-types pre-commit,commit-msg",
-  "[ -f uv.lock ] && uv sync --locked --all-extras --all-groups",
-]
-"CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "mise run install"]
-# The mirror of pdm-full: same workflow, the other task host.
+# This is the case that exercises uv build/relock in a manual release.
+".github/workflows/release.yaml" = ["uv build", "uv lock", "gh-action-pypi-publish"]
+# The CLI name deliberately differs from the distribution name.
+"pyproject.toml" = ['uv-full = "uv_full_example.cli:app"']
 ".github/workflows/docs.yaml" = ["uv sync --group docs", "mise run docs:build"]
-"zensical.toml" = ['accent = "teal"']
-# No release badge without gh-ship; the rest are all on.
-"README.md" = ["pypi/v/uv-full-example", "codecov.io", "docs-noirbizarre.github.io"]
+
+[expect.lacks]
+"pyproject.toml" = ["[tool.pdm.scripts]"]
+
+[commands]
+after = [
+  "prek validate-config prek.toml",
+  "mise trust ./mise.toml",
+  "mise run install",
+  "mise run ci",
+  "git add --all",
+  "mise run hooks",
+]

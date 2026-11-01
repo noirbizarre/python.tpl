@@ -1,20 +1,5 @@
-# Tooling for developing the template itself.
-#
-# There is no Python package here. The only build is `git tpl render` into a
-# scratch directory, and the only meaningful test is whether what comes out
-# installs, lints, type-checks and passes its own tests — which is what
-# `mise run render:check` does and what .github/workflows/render.yaml runs for
-# every case.
-#
-# Three layers, and they answer different questions:
-#
-#   lint:template   is this a valid *template*?
-#   test:template   does each case render *what it should*?
-#   render:check    is the output a working *project*?
-#
-# The first two are fast and run on every commit. The third is slow, needs a
-# network, and is the only one that would have caught a `pyproject.toml` that
-# renders perfectly and then fails to install.
+# Tooling for developing the template itself. git tpl test checks snapshots
+# and runs each generated project's own checks in an isolated sandbox.
 
 [settings]
 lockfile = true
@@ -23,24 +8,17 @@ lockfile = true
 prek = "latest"
 typos = "latest"
 actionlint = "latest"
-# The aqua backend named explicitly. Left as a bare `shellcheck` it resolves to
-# `asdf:shellcheck`, which carries no lockfile URLs — and `mise install
-# --locked` then fails on the one entry it cannot verify.
+# The explicit aqua backend supplies lockfile URLs for locked installs.
 "aqua:koalaman/shellcheck" = "latest"
-# Both drivers, because `render:check` runs whichever one the case chose.
 python = "3.14"
 uv = "latest"
 pdm = "latest"
 cargo-binstall = "latest"
-# `latest`, like every other tool here. `[settings] lockfile = true` above
-# resolves it once and records the exact build in mise.lock, so the version is
-# pinned where a version belongs and `mise up` is how it moves. A second pin in
-# this file would only be a second thing to bump — and the one in rust.tpl sat
-# two releases stale while its comment said it was deliberate.
+# Exact versions live in mise.lock; mise up advances them together.
 "cargo:git-tpl" = "latest"
 
 [tasks.default]
-description = "Lint the template, then check every case renders what it should"
+description = "Lint the template and test every rendered project"
 depends = ["lint", "test"]
 
 [tasks.lint]
@@ -49,19 +27,22 @@ depends = ["spell", "lint:actions", "lint:template"]
 
 [tasks."lint:template"]
 description = "Lint the template itself"
-# `-D warnings` because the two lints that matter here are advisory by default
-# and both describe silent failures: a path segment that renders to a bare
-# extension instead of nothing, and a `${{ }}` that escaped a `{% raw %}` block.
 run = "git tpl lint . --dirty -D warnings"
 
 [tasks."test:template"]
-description = "Render every case and check it against its expectations"
+description = "Check render expectations and snapshots without project commands"
 raw_args = true
-run = "git tpl test . --dirty"
+run = "git tpl test --skip-commands"
 
 [tasks.test]
-description = "Render every case and check it against its expectations"
-depends = ["test:template"]
+description = "Check snapshots and run every rendered project's own checks"
+raw_args = true
+run = "git tpl test"
+
+[tasks."test:write"]
+description = "Record render snapshots; review the diff and run test afterward"
+raw_args = true
+run = "git tpl test --write"
 
 [tasks.spell]
 description = "Check spelling"
@@ -69,9 +50,6 @@ run = "typos"
 
 [tasks."lint:actions"]
 description = "Lint this repository's own workflows"
-# There is no .github/actionlint.yml here — this repository's own workflows
-# need no suppressions. The rendered projects do, and their task names the file
-# explicitly; see the comment in template/mise.toml.jinja for why.
 run = "actionlint .github/workflows/*.yaml"
 
 [tasks.hooks]
@@ -86,10 +64,7 @@ run = """
 set -euo pipefail
 case="${usage_case:-pdm-full}"
 out="${OUT:-$(mktemp -d)}"
-# `--answers-from` reads the same tests/<case>.toml the test runner does, so
-# what you render by hand and what CI asserts on cannot drift apart.
-# `--strict-answers` fails on an answer the manifest does not declare, which is
-# what catches a question renamed in template.toml and not in the cases.
+# The same answer file drives manual rendering and the test suite.
 git tpl render "$MISE_PROJECT_ROOT" --dirty \\
   --output "$out" --force \\
   --answers-from "$MISE_PROJECT_ROOT/tests/$case.toml" \\
@@ -99,74 +74,6 @@ echo "Rendered $case into $out"
 """
 
 [tasks."render:check"]
-description = "Render one case and run the generated project's own checks"
+description = "Test one case's snapshot and generated project"
 usage = 'arg "<case>" help="The test case under tests/" default="pdm-full"'
-run = """
-#!/usr/bin/env bash
-set -euo pipefail
-case="${usage_case:-pdm-full}"
-out="$(mktemp -d)"
-trap 'rm -rf "$out"' EXIT
-
-OUT="$out" mise run render "$case"
-cd "$out"
-
-# Every rendered TOML and YAML file, parsed. The cheapest check there is, and
-# it catches the most common templating mistake by far: a conditional that
-# emits a stray comma, a duplicated table header or an unbalanced quote in a
-# branch no other case exercises. `git tpl test` asserts on substrings and
-# would notice none of them.
-#
-# `--no-project` so uv ignores the rendered pyproject, and `--with` rather than
-# a declared dependency, because pyyaml is needed for four seconds a year.
-echo "==> Parsing the rendered configuration"
-uv run --no-project --with pyyaml -- python "$MISE_PROJECT_ROOT/scripts/parse-rendered.py"
-
-# Parsing TOML alone cannot catch unsupported hook IDs or invalid prek options.
-echo "==> Validating the rendered prek configuration"
-prek validate-config prek.toml
-
-# One task host, whichever it is. `git tpl test` cannot express this: there is
-# no negative-substring assertion, so a delegating `[tasks.test]` in mise.toml
-# would satisfy every positive assertion the cases make about that file.
-echo "==> Checking the task host"
-python3 "$MISE_PROJECT_ROOT/scripts/check-one-task-host.py"
-
-echo "==> actionlint"
-actionlint -config-file .github/actionlint.yml .github/workflows/*.yaml
-
-echo "==> Installing"
-# The rendered tree is the only thing that knows which stack it came from, and
-# the build backend is the honest signal — `pdm.lock` does not exist yet in a
-# freshly rendered project, and re-reading tests/<case>.toml here would be a
-# second source of truth for the same fact.
-if grep -q 'build-backend = "pdm.backend"' pyproject.toml; then
-  export PDM_IGNORE_ACTIVE_VENV=1
-  pdm install -G:all
-  echo "==> The project's own checks"
-  pdm run ci
-else
-  uv sync --all-groups
-  echo "==> The project's own checks"
-  # Not `mise run ci` inside the rendered project: that would need mise to
-  # install the rendered toolchain, which is a second, slower thing to test and
-  # not this task's question. The commands are the ones those tasks wrap.
-  uv run --group lint ruff format --check src tests
-  uv run --group lint ruff check src tests
-  uv run --group lint ty check src tests
-  uv run --group test pytest
-  if [ -f zensical.toml ]; then
-    uv run --group docs zensical build
-  fi
-fi
-
-echo "==> The project's hooks"
-# Hooks discover tracked files. A disposable repository also lets actionlint
-# and other Git-aware tools inspect the rendered project normally.
-git init --quiet
-git add --all
-prek run --all-files --show-diff-on-failure
-
-echo
-echo "$case is a working project."
-"""
+run = 'git tpl test "${usage_case:-pdm-full}"'

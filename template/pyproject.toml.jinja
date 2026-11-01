@@ -43,7 +43,7 @@ dependencies = [
 {%- else %}
 dependencies = []
 {%- endif %}
-{% if cli %}
+{% if cli and cli_name is defined %}
 [project.scripts]
 {{ cli_name }} = "{{ package }}.cli:app"
 {% endif %}

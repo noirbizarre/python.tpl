@@ -1,0 +1,72 @@
+# The toolchain and automatic setup.
+#
+# There are no tasks in this file. PDM is this project's task host — the tasks
+# are `[tool.pdm.scripts]` in pyproject.toml, and `pdm run --list` shows them.
+#
+# mise could delegate to them (`run = "pdm run test"`), and deliberately does
+# not: a delegation layer gives every task two names, two places to look when
+# it misbehaves, and two chances to go stale against each other. A project has
+# one task host. Here it is PDM, and mise's job is to put the right pdm, the
+# right Python and the right prek on PATH before it runs, and bootstrap the
+# development environment with the postinstall hooks below.
+#
+# Tool versions resolve to exact builds in `mise.lock`, which is committed, so
+# `pdm run ci` locally and the CI workflow run identical tool versions.
+
+[settings]
+# Resolve tools through mise.lock and keep it updated. Without this the
+# lockfile is ignored and `latest` really does mean latest, on every machine
+# independently.
+lockfile = true
+
+# Do not let mise adopt `.python-version` or pyproject's `requires-python` as a
+# version source. The development interpreter is declared once, below —
+# `requires-python` is the *floor* the package supports, which is a different
+# question and usually a different answer.
+idiomatic_version_file_enable_tools = []
+
+[tools]
+# The development interpreter: the newest supported version, so a deprecation
+# shows up here before it shows up in a user's environment. The matrix in
+# ♻️ CI covers 3.10 through 3.14.
+python = "3.14"
+pdm = "latest"
+uv = "latest"
+prek = "latest"
+typos = "latest"
+actionlint = "latest"
+# The aqua backend named explicitly. Left as a bare `shellcheck` it resolves to
+# `asdf:shellcheck`, which carries no lockfile URLs — and `mise install
+# --locked`, which mise-action runs as soon as a mise.lock exists, then fails
+# on the one entry it cannot verify.
+"aqua:koalaman/shellcheck" = "latest"
+# The template this project is rendered from. `cargo:` rather than `github:` or
+# `ubi:`, which install it fine but write no lockfile URLs. It is not a source
+# build: git-tpl ships binstall metadata, so this is a download.
+#
+# `latest`, like every other tool here. `[settings] lockfile = true` above
+# resolves it once and records the exact build in mise.lock, so the version is
+# pinned where a version belongs and `mise up` is how it moves. A version here
+# as well would only be a second thing to bump, and the one that gets forgotten
+# is the one that makes 🔄 Template stop reporting drift.
+"cargo:git-tpl" = "latest"
+cargo-binstall = "latest"
+
+[env]
+# The virtualenv every task runs in, created on first use. This is what makes a
+# bare `pytest` in an interactive shell work without `pdm run`.
+_.python.venv = { path = ".venv", create = true }
+
+[hooks]
+# A fresh render has no dependency lockfile yet. Install hooks immediately,
+# but leave the first dependency install to the setup instructions.
+postinstall = [
+  "prek install --install-hook-types pre-commit,commit-msg",
+  "[ -f pdm.lock ] && pdm install -dG:all",
+]
+
+# --- project-specific ---------------------------------------------------------
+#
+# Add tools below this line, and tasks to `[tool.pdm.scripts]` in
+# pyproject.toml. The template owns everything above; everything here is yours,
+# and Git's 3-way merge preserves it across `git tpl update`.

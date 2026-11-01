@@ -1,0 +1,132 @@
+# prek's native TOML configuration. There is deliberately no
+# `.pre-commit-config.yaml`: two configuration formats for one hook runner is
+# one too many, and the YAML one would be the stale copy.
+#
+# Prefer prek builtins and official upstream hooks. Reserve `repo = "local"`
+# for project-specific checks without an upstream hook. Update Ruff and ty
+# revisions alongside their minimum versions in pyproject.toml.
+
+default_install_hook_types = ["pre-commit", "commit-msg"]
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "check-added-large-files" },
+  { id = "check-merge-conflict" },
+  { id = "check-toml" },
+  { id = "check-yaml" },
+  { id = "check-json" },
+  # Ruff below checks Python syntax and debugger statements; neither check is
+  # available as a prek builtin.
+  # Python files are excluded because `ruff format` below already owns their
+  # final newline, and two hooks rewriting the same bytes is how a pre-commit
+  # run ends up needing a second pre-commit run.
+  { id = "end-of-file-fixer", exclude_types = ["python"] },
+  { id = "mixed-line-ending" },
+  # Fixtures and snapshots record output verbatim, trailing whitespace
+  # included. Trimming it here would fail the tests that assert it.
+  { id = "trailing-whitespace", exclude = "^tests/(fixtures|snapshots)/" },
+]
+
+# Validate workflow and dependency-update configuration against their schemas.
+[[repos]]
+repo = "https://github.com/python-jsonschema/check-jsonschema"
+rev = "0.39.0"
+hooks = [
+  { id = "check-github-workflows" },
+  { id = "check-dependabot" },
+]
+
+[[repos]]
+repo = "https://github.com/rhysd/actionlint"
+rev = "v1.7.12"
+
+# `-config-file` explicitly, rather than relying on actionlint finding
+# .github/actionlint.yml on its own: it discovers the config by walking up to
+# the *Git repository root*, so it silently applies no suppressions in a
+# freshly rendered tree, a detached worktree, or anywhere the repository has
+# not been initialised yet. Naming the file makes the suppressions apply
+# wherever this runs.
+#
+# Suppressions belong in that file and not as flags here, so this and the prek
+# hook cannot drift apart.
+[[repos.hooks]]
+id = "actionlint-system"
+args = ["-config-file", ".github/actionlint.yml"]
+files = "^\\.github/workflows/.*\\.ya?ml$"
+
+[[repos]]
+repo = "https://github.com/crate-ci/typos"
+rev = "v1.51.1"
+# Upstream defaults to writing fixes; keep spelling checks report-only.
+hooks = [{ id = "typos", args = ["--force-exclude"] }]
+
+[[repos]]
+repo = "https://github.com/astral-sh/ruff-pre-commit"
+rev = "v0.17.3"
+hooks = [
+  { id = "ruff-check", args = ["--fix"] },
+  { id = "ruff-format" },
+]
+
+[[repos]]
+repo = "https://github.com/astral-sh/ty-pre-commit"
+rev = "v0.0.95"
+
+# The type checker runs over the whole project rather than over the staged
+# files: a type error is rarely in the file that introduced it, and checking
+# one file in isolation reports errors that do not exist and misses the ones
+# that do.
+[[repos.hooks]]
+id = "ty"
+args = ["--locked", "--all-groups"]
+
+# The lockfile has to match pyproject, and the check is the stack's own.
+[[repos]]
+repo = "https://github.com/astral-sh/uv-pre-commit"
+rev = "0.13.6"
+# `--check` is the non-writing form of `uv lock`. Not `--frozen`, which
+# asserts that the lock is *used* rather than that it is *current*.
+hooks = [{ id = "uv-lock", args = ["--check"] }]
+
+[[repos]]
+repo = "https://github.com/DavidAnson/markdownlint-cli2"
+rev = "v0.24.0"
+hooks = [
+  { id = "markdownlint-cli2", args = ["--fix"], additional_dependencies = ["markdownlint-cli2-formatter-pretty"] },
+]
+
+[[repos]]
+repo = "https://github.com/editorconfig-checker/editorconfig-checker.python"
+rev = "3.11.1"
+# Python and Markdown have dedicated formatters; fixtures preserve exact bytes.
+hooks = [{ id = "editorconfig-checker", exclude = "\\.(py|md)$|^tests/(fixtures|snapshots)/" }]
+
+# Conventional Commits, checked on `commit-msg` by the same commitizen and the
+# same `emotional` rule set that writes the changelog. One grammar, one
+# implementation — a separate node-based commitlint would be a second opinion
+# about what a valid subject is, and the two would eventually disagree.
+[[repos]]
+repo = "https://github.com/commitizen-tools/commitizen"
+rev = "v4.19.3"
+hooks = [{ id = "commitizen", additional_dependencies = ["emotional==0.6.1"] }]
+
+# --- project-specific hooks ---------------------------------------------------
+#
+# Add architecture guards and other project-only hooks below this line. The
+# template owns everything above it and will keep updating it; everything here
+# is yours, and Git's 3-way merge preserves it across `git tpl update`.
+#
+# The pattern these projects use is a grep that fails the commit when a
+# dependency escapes the module that is supposed to contain it:
+#
+#   [[repos]]
+#   repo = "local"
+#
+#   [[repos.hooks]]
+#   id = "http-isolation"
+#   name = "the HTTP client is confined to the data layer"
+#   language = "system"
+#   entry = "bash -c '! grep -rn --include=*.py \"^import httpx\" src | grep -v \"^src/uv_minimal_example/data/\"'"
+#   types = ["python"]
+#   pass_filenames = false

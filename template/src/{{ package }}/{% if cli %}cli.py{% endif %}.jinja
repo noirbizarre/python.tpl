@@ -1,3 +1,4 @@
+{% if cli_name is defined -%}
 """The `{{ cli_name }}` command-line interface."""
 
 from __future__ import annotations
@@ -35,3 +36,4 @@ def hello(name: str = "world") -> None:
         Who to greet.
     """
     print(f"Hello, {name}!")
+{% endif -%}

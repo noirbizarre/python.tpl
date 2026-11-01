@@ -1,0 +1,102 @@
+name: 🚀 Release
+
+# Dispatched by hand. There is no Release PR on this branch of the template:
+# you decide a release is due, you press the button, and commitizen derives the
+# increment from the commits since the last tag. `need-checks` is what stops it
+# running against a red main — a published version cannot be unpublished.
+
+on:
+  workflow_dispatch:
+    inputs:
+      increment:
+        description: Force an increment, or AUTO to derive it from the commits
+        type: choice
+        # `AUTO` rather than an empty option. GitHub renders an empty choice as
+        # a blank line nobody can tell apart from a rendering glitch, and
+        # actionlint rejects it outright — while commitizen rejects
+        # `--increment ""` just as firmly. One sentinel, spelled out.
+        options: [AUTO, MAJOR, MINOR, PATCH]
+        default: AUTO
+        required: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  FORCE_COLOR: "1"
+
+# One release at a time, and never cancel one midway: a cancelled release
+# leaves a tag without a GitHub Release, or worse, a published artifact
+# without a tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: 🚀 Release
+    runs-on: ubuntu-latest
+    # The PAT lives here, and an environment gives the release a review gate if
+    # the repository wants one later.
+    environment: release
+    permissions:
+      contents: write
+
+    steps:
+      # Refuses to release unless ♻️ CI is green on the commit being released.
+      # Without it a dispatch can tag a broken main, and there is no undoing a
+      # published version.
+      - name: Require a green CI
+        uses: noirbizarre/need-checks@0.1
+        with:
+          token: ${{ secrets.PAT }}
+          workflow: ci.yaml
+
+      - uses: actions/checkout@v7
+        with:
+          # Full history *and* tags: commitizen derives the increment from the
+          # commits since the last tag, and a shallow clone has neither.
+          fetch-depth: 0
+          fetch-tags: true
+          # NOT the default GITHUB_TOKEN: a push authenticated with it triggers
+          # no workflows, so the tag created below would never run anything.
+          token: ${{ secrets.PAT }}
+
+      - uses: jdx/mise-action@v5
+        with:
+          reshim: true
+          cache: true
+
+      # Bumps the version, writes CHANGELOG.md, commits and tags.
+      # `extra_requirements: emotional` because the rule set that writes the
+      # changelog is the same one the commit-msg hook validates against, and
+      # the action installs commitizen into an environment of its own.
+      - name: Bump using commitizen
+        uses: commitizen-tools/commitizen-action@0.24.0
+        with:
+          github_token: ${{ secrets.PAT }}
+          changelog_increment_filename: body.md
+          extra_requirements: emotional
+          git_redirect_stderr: true
+          increment: ${{ inputs.increment != 'AUTO' && inputs.increment || '' }}
+
+      - name: GitHub Release
+        id: github-release
+        uses: softprops/action-gh-release@v3
+        with:
+          body_path: body.md
+          tag_name: ${{ env.REVISION }}
+          token: ${{ secrets.PAT }}
+
+      - name: Publish a summary
+        run: |
+          {
+            cat body.md
+            echo
+            echo "### Artifacts"
+            echo "- GitHub release: ${{ steps.github-release.outputs.url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

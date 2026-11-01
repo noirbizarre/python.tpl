@@ -1,9 +1,6 @@
-# The middle stack, every slot on.
-#
-# Its whole reason to exist is that `pdm-uv` differs from `pdm` in exactly one
-# rendered file and two lines elsewhere. If that stops being true — if a
-# conditional starts branching on `stack == 'pdm'` where it means `is_pdm` —
-# this case is what says so.
+# PDM with uv resolution: the backend and task host remain PDM's.
+snapshot = true
+git = true
 
 [answers]
 distribution = "pdm-uv-example"
@@ -25,45 +22,20 @@ pypi = true
 codecov = true
 gh_ship = true
 
-[expect]
-files = [
-  # The one file that exists on this stack and on neither of the others.
-  "pdm.toml",
-  "pyproject.toml",
-  ".editorconfig",
-  ".markdownlint-cli2.yaml",
-  "zensical.toml",
-  ".github/workflows/prepare-release.yaml",
-]
-absent = [".github/workflows/release.yaml"]
-
 [expect.contains]
 "pdm.toml" = ["use_uv = true"]
-# The differentiator is the resolver and nothing else: the backend, the task
-# host and the version provider are all the PDM stack's.
-"pyproject.toml" = [
-  'build-backend = "pdm.backend"',
-  "[tool.pdm.scripts]",
-  'version_provider = "scm"',
-  'dynamic = ["version"]',
+"pyproject.toml" = ['build-backend = "pdm.backend"', "[tool.pdm.scripts]", 'version_provider = "scm"']
+".github/workflows/ci.yaml" = ["pdm config python.install_root"]
+
+[expect.lacks]
+"mise.toml" = ["[tasks"]
+
+[commands]
+env = { PDM_IGNORE_ACTIVE_VENV = "1" }
+after = [
+  "prek validate-config prek.toml",
+  "pdm install -G:all",
+  "pdm run ci",
+  "git add --all",
+  "prek run --all-files --show-diff-on-failure",
 ]
-"mise.toml" = [
-  'pdm = "latest"',
-  'uv = "latest"',
-  "[hooks]",
-  "prek install --install-hook-types pre-commit,commit-msg",
-  "[ -f pdm.lock ] && pdm install -dG:all",
-]
-"CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "pdm install -G:all"]
-"prek.toml" = ['repo = "https://github.com/pdm-project/pdm"', 'id = "pdm-lock-check"', 'entry = "pdm run typecheck"']
-# CI needs uv on PATH for PDM to resolve through it, and PDM pointed at uv's
-# interpreters so the matrix version is the one actually used.
-".github/workflows/ci.yaml" = [
-  "pdm install -G test",
-  "astral-sh/setup-uv",
-  "pdm config python.install_root",
-]
-".github/workflows/publish-release.yaml" = ["pdm build"]
-# `.gitignore` re-includes pdm.toml, which a global ignore would otherwise
-# hide — the file is committed on purpose and only on this stack.
-".gitignore" = ["!pdm.toml"]

@@ -1,0 +1,35 @@
+version: 2
+
+updates:
+  # `uv` is a first-class Dependabot ecosystem: it reads pyproject.toml and
+  # updates uv.lock in the same pull request, so nothing has to be relocked by
+  # hand.
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    # Dependabot rebasing its own open pull requests re-runs CI on every push to
+    # main, for branches nobody is waiting on.
+    rebase-strategy: disabled
+    open-pull-requests-limit: 10
+    groups:
+      # One pull request a week for the routine bumps, and an individual one
+      # for every major — which is the only kind that needs reading.
+      python-dependencies:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    rebase-strategy: disabled
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+      include: scope

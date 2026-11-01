@@ -1,0 +1,3 @@
+# Recorded projects are fixtures, not workspace projects. Their hooks run in
+# git-tpl's disposable sandboxes instead.
+tests/__snapshots__/

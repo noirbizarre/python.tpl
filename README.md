@@ -4,8 +4,8 @@
 <p align="center"><strong>Base stack for Python projects, as a <a href="https://github.com/noirbizarre/git-tpl">git-tpl</a> template</strong></p>
 
 <p align="center">
-  <a href="https://github.com/noirbizarre/python.tpl/actions/workflows/render.yaml">
-    <img src="https://github.com/noirbizarre/python.tpl/actions/workflows/render.yaml/badge.svg" alt="Render">
+  <a href="https://github.com/noirbizarre/python.tpl/actions/workflows/ci.yaml">
+    <img src="https://github.com/noirbizarre/python.tpl/actions/workflows/ci.yaml/badge.svg" alt="CI">
   </a>
   <img src="https://img.shields.io/github/license/noirbizarre/python.tpl" alt="License">
 </p>
@@ -69,8 +69,8 @@ the uv stack it is the other way round.
 A delegating `[tasks.test] run = "pdm run test"` is the tempting middle ground
 and is exactly what is ruled out: it gives every task two names, two places to
 look when it misbehaves, and two chances to go stale against each other.
-`scripts/check-one-task-host.py` fails the render check if either file grows
-the other's tasks.
+Rendered snapshots and case expectations pin this task-host split for every
+stack.
 
 The workflows never name the host. They call the `task()` macro in
 [`macros/commands.jinja`](macros/commands.jinja), which is the only place that
@@ -95,26 +95,35 @@ Commitizen and `emotional` are common to both. Only the orchestration differs.
 
 ## Verification
 
-Three layers, each answering a question the others cannot.
+Lint validates the template; tests verify its complete output and exercise the
+generated projects.
 
 ```bash
-mise run lint:template          # is this a valid template?
-mise run test:template          # does each case render what it should?
-mise run render:check uv-full   # is the output a working project?
+mise run lint:template          # validate the template
+mise run test:template          # fast expectations and snapshot comparison
+mise run test                   # full suite, including generated-project checks
+mise run test uv-full           # one case, with all its checks
+mise run test:write             # record snapshots for review
 ```
 
 `git tpl lint` catches the two failures that are otherwise silent: a
 conditional path segment that renders to a bare extension instead of nothing,
 and a GitHub `${{ }}` expression that escaped a `{% raw %}` block. `git tpl
-test` runs `tests/*.toml` — and `absent` is the assertion that earns its keep,
-because the conditional-path idiom fails by producing a file rather than by
-erroring. `render:check` installs the rendered project and runs its own ruff,
-ty, pytest and docs build, plus the actual prek hooks (including Markdownlint
-and EditorConfig), which is the only layer that would catch a
-`pyproject.toml` that renders perfectly and then fails to install.
+test` runs `tests/*.toml`: five successful cases compare their complete rendered
+file sets, contents and modes against committed `tests/__snapshots__/`, and an
+invalid-input case checks its diagnostic code. Each successful case's commands
+install the project and run its Ruff, ty, pytest and optional docs build, plus
+configuration validation and actual prek hooks (including Markdownlint and
+EditorConfig). `mise run render:check <case>` also runs a single case.
+
+After an intentional template change, run `mise run test:write`, review the
+snapshot diff, and run `mise run test`. Recording only writes snapshots: it
+does not run expectations or project commands. Include the updated snapshots
+with the template change.
 
 The cases are also the answer files: `tests/*.toml` is read by `git tpl test`
-for `[answers]` and `[expect]`, and by `--answers-from` for `[answers]` alone.
+for answers, expectations, snapshots and commands, and by `--answers-from` for
+`[answers]` alone.
 One file, so the runner and the render tasks cannot drift onto different inputs.
 
 ## Extending it

@@ -1,13 +1,6 @@
-# Every optional slot off, on the plainest stack.
-#
-# This is the case that earns its keep. `absent` is the only thing that proves
-# a conditional path segment was skipped rather than rendering something
-# harmless: the conditional-path idiom fails by producing a file, not by
-# erroring, so "it rendered and installed" never shows it.
-#
-# Read twice: by `git tpl test`, which uses [answers] and [expect], and by
-# `--answers-from`, which reads [answers] and ignores the rest. One file, so
-# the test runner and the render tasks cannot drift onto different inputs.
+# Plain PDM, every optional slot off. Snapshots cover the complete file set.
+snapshot = true
+git = true
 
 [answers]
 distribution = "minimal-example"
@@ -28,114 +21,21 @@ codecov = false
 gh_ship = false
 
 [expect]
-files = [
-  "pyproject.toml",
-  "mise.toml",
-  "prek.toml",
-  ".editorconfig",
-  ".markdownlint-cli2.yaml",
-  "typos.toml",
-  "LICENSE",
-  "README.md",
-  "CONTRIBUTING.md",
-  "AGENTS.md",
-  ".gitignore",
-  ".github/actionlint.yml",
-  ".github/dependabot.yml",
-  ".github/workflows/ci.yaml",
-  ".github/workflows/template.yaml",
-  ".github/workflows/release.yaml",
-  "src/minimal_example/__init__.py",
-  "src/minimal_example/py.typed",
-  "tests/conftest.py",
-  "tests/test_minimal_example.py",
-]
-absent = [
-  # docs
-  "zensical.toml",
-  "docs/index.md",
-  "docs/api.md",
-  "docs/adr/README.md",
-  ".github/workflows/docs.yaml",
-  # cli
-  "src/minimal_example/cli.py",
-  "src/minimal_example/__main__.py",
-  # gh_ship — the whole other release shape, which must not co-exist with
-  # release.yaml above
-  ".github/ship.yml",
-  ".github/workflows/ship.yaml",
-  ".github/workflows/prepare-release.yaml",
-  ".github/workflows/publish-release.yaml",
-  # codecov
-  ".github/codecov.yml",
-  # pdm-uv only
-  "pdm.toml",
-]
+# Conditional release shapes must never coexist.
+absent = [".github/workflows/prepare-release.yaml", "pdm.toml", "zensical.toml"]
 
 [expect.contains]
-"pyproject.toml" = [
-  'name = "minimal-example"',
-  # PEP 639, not the deprecated `license = { text = ... }` table.
-  'license = "MIT"',
-  'requires-python = ">=3.10"',
-  # The version is the tag on this stack, so there is no string to bump.
-  'dynamic = ["version"]',
-  'build-backend = "pdm.backend"',
-  'version_provider = "scm"',
-  "[tool.pdm.scripts]",
-  'target-version = "py310"',
-  'python-version = "3.10"',
-  '"ruff>=0.17.3"',
-  '"ty>=0.0.95"',
-  'include = ["src", "tests"]',
-  # The oldest and the newest supported version both reach the classifiers,
-  # from the same computed list the CI matrix is rendered from.
-  '"Programming Language :: Python :: 3.10"',
-  '"Programming Language :: Python :: 3.14"',
-  # Every task is a PDM script, including the three that run a mise-installed
-  # binary rather than something in the virtualenv. Splitting a project's tasks
-  # across two runners by which binary they happen to invoke is the two-hosts
-  # problem arriving through the back door.
-  'test.cmd = "pytest"',
-  'spell.cmd = "typos"',
-  '"lint:actions".shell',
-  '"tpl:check".composite',
+"pyproject.toml" = ['build-backend = "pdm.backend"', 'dynamic = ["version"]', "[tool.pdm.scripts]"]
+
+[expect.lacks]
+"mise.toml" = ["[tasks"]
+
+[commands]
+env = { PDM_IGNORE_ACTIVE_VENV = "1" }
+after = [
+  "prek validate-config prek.toml",
+  "pdm install -G:all",
+  "pdm run ci",
+  "git add --all",
+  "prek run --all-files --show-diff-on-failure",
 ]
-# mise.toml carries tools and setup hooks on this stack.
-#
-# `git tpl test` has no negative-substring assertion, so "and defines no tasks"
-# cannot be stated here — a delegating `[tasks.test]` would satisfy every
-# positive assertion above while reintroducing the second task host. That
-# invariant is checked structurally instead, by
-# scripts/check-one-task-host.py in the render job, which parses both files and
-# asserts exactly one of them defines tasks. A better check than any substring.
-"mise.toml" = [
-  'pdm = "latest"',
-  "[tools]",
-  "[hooks]",
-  "prek install --install-hook-types pre-commit,commit-msg",
-  "[ -f pdm.lock ] && pdm install -dG:all",
-]
-"CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "pdm install -G:all"]
-"prek.toml" = [
-  'repo = "https://github.com/pdm-project/pdm"',
-  'id = "pdm-lock-check"',
-  'repo = "https://github.com/astral-sh/ruff-pre-commit"',
-  'rev = "v0.17.3"',
-  'repo = "https://github.com/astral-sh/ty-pre-commit"',
-  'rev = "v0.0.95"',
-  'entry = "pdm run typecheck"',
-  'repo = "https://github.com/crate-ci/typos"',
-  'repo = "https://github.com/commitizen-tools/commitizen"',
-  'id = "markdownlint-cli2"',
-  'additional_dependencies = ["markdownlint-cli2-formatter-pretty"]',
-  'id = "editorconfig-checker"',
-]
-".editorconfig" = ["max_line_length = 100"]
-".markdownlint-cli2.yaml" = ["line_length: 120", "markdownlint-cli2-formatter-pretty"]
-".github/workflows/ci.yaml" = [
-  "pdm install -G test",
-  '"3.10", "3.11", "3.12", "3.13", "3.14"',
-]
-".github/workflows/release.yaml" = ["need-checks", "commitizen-action"]
-"README.md" = ["ci.yaml/badge.svg"]

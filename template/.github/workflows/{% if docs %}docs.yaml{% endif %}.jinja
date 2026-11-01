@@ -36,10 +36,9 @@ jobs:
 
       # The toolchain is pinned by mise.lock, so this build uses the same
       # versions as the same task run locally.
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@v5
         with:
-          # Keep in sync with PINNED_MISE_VERSION in ci.yaml.
-          version: 2026.7.18
+          reshim: true
           cache: true
 {%- endraw %}
 

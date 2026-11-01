@@ -2,12 +2,6 @@
 /out/
 /.render/
 
-# Snapshots recorded by `git tpl test --write`. Deliberately not committed:
-# every case's snapshot is the whole rendered tree, so a one-line change to a
-# shared file rewrites five directories and the review is unreadable. The
-# `[expect]` blocks assert what actually matters. See git-tpl#51.
-tests/__snapshots__/
-
 # --- mise ---------------------------------------------------------------
 #
 # A common global gitignore excludes `mise.toml` and `mise.lock` on the

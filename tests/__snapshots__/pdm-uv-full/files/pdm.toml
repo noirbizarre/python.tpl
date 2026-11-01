@@ -1,0 +1,13 @@
+# PDM resolves and installs through uv.
+#
+# The lockfile is still PDM's (`pdm.lock`), the build backend is still
+# pdm-backend, and the tasks are still `[tool.pdm.scripts]` — only the resolver
+# changes. That is the whole point of this stack: uv's speed without adopting
+# uv's project model, and without rewriting a project's task surface.
+#
+# This file is PDM's *local* configuration and is normally gitignored. It is
+# committed here deliberately: the resolver is a property of the project, not
+# of the developer, and a contributor who resolves with PDM's own resolver
+# would produce a lockfile the rest of the team did not.
+[pdm]
+use_uv = true

@@ -18,14 +18,13 @@ hooks = [
   # and final newline are part of what the test snapshots assert. Two of these
   # files are also deliberately blank (`py.typed`), which the end-of-file fixer
   # would rewrite.
-  { id = "end-of-file-fixer", exclude = "^template/" },
-  { id = "trailing-whitespace", exclude = "^template/" },
+  { id = "end-of-file-fixer", exclude = "^(template/|tests/__snapshots__/)" },
+  { id = "trailing-whitespace", exclude = "^(template/|tests/__snapshots__/)" },
 ]
 
 # `check-toml` is *not* in the list above, on purpose: most of the TOML in this
 # repository is a Jinja template and is not valid TOML until it is rendered.
-# The rendered output is parsed instead, by `mise run render:check` and by the
-# render job in CI — which is the only place the question is meaningful.
+# Generated-project tools and hooks validate the rendered configuration instead.
 
 [[repos]]
 repo = "https://github.com/python-jsonschema/check-jsonschema"
@@ -55,14 +54,14 @@ repo = "https://github.com/DavidAnson/markdownlint-cli2"
 rev = "v0.24.0"
 # Raw Jinja Markdown is checked after rendering, not as Markdown source.
 hooks = [
-  { id = "markdownlint-cli2", args = ["--fix"], additional_dependencies = ["markdownlint-cli2-formatter-pretty"], exclude = "^template/" },
+  { id = "markdownlint-cli2", args = ["--fix"], additional_dependencies = ["markdownlint-cli2-formatter-pretty"], exclude = "^(template/|tests/__snapshots__/)" },
 ]
 
 [[repos]]
 repo = "https://github.com/editorconfig-checker/editorconfig-checker.python"
 rev = "3.11.1"
-# Rendered templates are checked by render:check; raw Jinja has its own layout.
-hooks = [{ id = "editorconfig-checker", exclude = "^template/|\\.(py|md)$" }]
+# Rendered projects are checked by case commands; raw Jinja has its own layout.
+hooks = [{ id = "editorconfig-checker", exclude = "^(template/|tests/__snapshots__/)|\\.(py|md)$" }]
 
 [[repos]]
 repo = "https://github.com/commitizen-tools/commitizen"
@@ -81,13 +80,4 @@ id = "tpl-lint"
 name = "git tpl lint"
 language = "system"
 entry = "git tpl lint . --dirty -D warnings"
-pass_filenames = false
-
-# The cases are cheap to render and are the only thing that proves a
-# conditional file was skipped rather than rendered empty.
-[[repos.hooks]]
-id = "tpl-test"
-name = "git tpl test"
-language = "system"
-entry = "git tpl test . --dirty"
 pass_filenames = false

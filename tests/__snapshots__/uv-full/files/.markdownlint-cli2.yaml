@@ -1,0 +1,25 @@
+---
+config:
+  default: true
+  MD004:
+    style: dash
+  # Python-Markdown requires four spaces for nested lists.
+  MD007:
+    indent: 4
+  MD013:
+    line_length: 120
+    tables: false
+    code_blocks: false
+  # Allow GitHub-style lists and documentation-site admonitions/fragments.
+  MD032: false
+  MD038: false
+  MD046: false
+  MD051: false
+
+fix: true
+noBanner: true
+noProgress: true
+showFound: false
+
+outputFormatters:
+  - [markdownlint-cli2-formatter-pretty]

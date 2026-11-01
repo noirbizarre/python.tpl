@@ -1,0 +1,307 @@
+[project]
+name = "full-example"
+description = "Every optional slot turned on"
+authors = [{ name = "Axel H.", email = "noirbizarre@gmail.com" }]
+readme = "README.md"
+# PEP 639, not the `license = { text = "MIT" }` table the previous generation
+# of this template used: that form is deprecated, and the `License ::`
+# classifier it implies is now rejected on upload to PyPI.
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+keywords = ["python", "example", "template"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+# pdm-backend reads the version from the SCM tag, so it is dynamic here and
+# there is no string for anything to get out of sync with.
+dynamic = ["version"]
+dependencies = [
+    # Seeded once, then yours: Dependabot bumps it in your repository, and this
+    # template will not propagate a version back over the top of that.
+    "cyclopts>=4.0",
+    "rich>=14.0",
+]
+
+[project.scripts]
+full-example = "full_example.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/noirbizarre/full-example"
+Documentation = "https://noirbizarre.github.io/full-example/"
+Repository = "https://github.com/noirbizarre/full-example"
+Issues = "https://github.com/noirbizarre/full-example/issues"
+Changelog = "https://github.com/noirbizarre/full-example/blob/main/CHANGELOG.md"
+
+
+# --- Build --------------------------------------------------------------------
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.build]
+package-dir = "src"
+
+[tool.pdm.version]
+# The tag is the version. There is no string in this file to forget to bump,
+# and `cz bump` with `version_provider = "scm"` tags without editing anything.
+source = "scm"
+# Without this, a freshly created project cannot be installed at all: `source =
+# "scm"` fails hard when there is no tag to read, and a project has no tags
+# until its first release. `pdm install` in a brand new repository would end in
+# a build error about `PDM_BUILD_SCM_VERSION`, which is a poor first impression
+# and not a real problem — the version simply is not known yet.
+fallback_version = "0.0.0"
+# Written into the built distribution, never into the worktree — this path does
+# not exist in Git and must not be committed. It is in .gitignore.
+write_to = "full_example/VERSION"
+write_template = "{}"
+
+
+# --- Dependencies -------------------------------------------------------------
+
+[dependency-groups]
+# `dev` is what a contributor installs. Every other group is a slice CI uses on
+# its own, so the lint job does not install pytest and the test job does not
+# install ty. Group names are spelled the same everywhere — `docs`, never
+# `doc`, which is the mismatch that broke Read the Docs in the previous
+# attempt.
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+    { include-group = "docs" },
+    { include-group = "release" },
+]
+
+test = [
+    "pytest>=9.0",
+    "pytest-cov>=6.0",
+    "pytest-sugar>=1.0",
+    "coverage[toml]>=7.6",
+]
+
+lint = [
+    "ruff>=0.17.3",
+    # Astral's type checker. Not mypy: one vendor for the linter, the formatter
+    # and the checker means one release cadence and one set of semantics.
+    #
+    # A floor at the current release rather than an open one, because ty is
+    # pre-1.0 and its rule set still moves between patch versions — an older ty
+    # would accept code this project's CI rejects, which is the wrong way round.
+    "ty>=0.0.95",
+]
+
+docs = [
+    "zensical>=0.0.56",
+    "mkdocstrings-python>=1.12",
+]
+
+release = [
+    "commitizen>=4.0",
+    # `emotional` is a commitizen rule set: Conventional Commits with emoji
+    # changelog sections. Installed rather than fetched at release time, so
+    # `mise run changelog` locally and the release workflow produce the same
+    # file from the same commits.
+    "emotional>=0.5",
+]
+
+
+# --- Tasks --------------------------------------------------------------------
+#
+# PDM is this project's task host, and the only one. `mise.toml` carries the
+# toolchain and no tasks at all — a `mise run test` that shelled out to
+# `pdm run test` would give every task two names, two places to look when it
+# misbehaves, and two chances to go stale against each other.
+#
+# `pdm run --list` prints this table with the help strings.
+
+[tool.pdm.scripts]
+test.help = "Run the test suite"
+test.cmd = "pytest"
+
+cover.help = "Run the test suite with coverage"
+cover.cmd = "pytest --cov --cov-report=term-missing --cov-report=xml:coverage.xml"
+
+lint.help = "Lint the code"
+lint.cmd = "ruff check src tests"
+
+format.help = "Format the code and sort imports"
+format.composite = [
+    # Import sorting first: `ruff format` does not sort, and running it
+    # afterwards would leave the files needing a second pass.
+    "ruff check --select I --fix-only src tests",
+    "ruff format src tests",
+]
+
+"format:check".help = "Check the formatting without rewriting"
+"format:check".cmd = "ruff format --check src tests"
+
+typecheck.help = "Type-check the code"
+typecheck.cmd = "ty check src tests"
+
+"docs:build".help = "Build the documentation site"
+"docs:build".cmd = "zensical build"
+
+"docs:serve".help = "Serve the documentation locally, with live reload"
+"docs:serve".cmd = "zensical serve"
+
+changelog.help = "Preview the changelog for the unreleased commits"
+changelog.cmd = "cz changelog --unreleased-version NEXT --dry-run"
+
+# These three run tools mise installed rather than anything in the virtualenv,
+# and they are scripts here anyway: a task is a task, and splitting them across
+# two runners by which binary they happen to invoke is exactly the two-hosts
+# problem this table exists to avoid.
+spell.help = "Check spelling"
+spell.cmd = "typos"
+
+"lint:actions".help = "Lint the GitHub Actions workflows"
+# `shell`, not `cmd`: PDM splits a `cmd` with shlex and never expands a glob,
+# so `*.yaml` would reach actionlint as a literal filename.
+#
+# `-config-file` explicitly, rather than relying on actionlint finding
+# .github/actionlint.yml on its own: it discovers the config by walking up to
+# the *Git repository root*, so it silently applies no suppressions in a
+# freshly rendered tree, a detached worktree, or anywhere the repository has
+# not been initialised yet. Naming the file makes the suppressions apply
+# wherever this runs.
+#
+# Suppressions belong in that file and not as flags here, so this and the prek
+# hook cannot drift apart.
+"lint:actions".shell = "actionlint -config-file .github/actionlint.yml .github/workflows/*.yaml"
+
+hooks.help = "Run every prek hook over every file"
+hooks.cmd = "prek run --all-files --show-diff-on-failure"
+
+ci.help = "Everything CI runs, locally"
+ci.composite = ["format:check", "lint", "typecheck", "cover", "docs:build"]
+
+# --- Template -----------------------------------------------------------------
+#
+# This project is rendered from python.tpl. `git tpl update` advances
+# refs/tpl/<id> and touches nothing else — not HEAD, not the index, not the
+# worktree — so running it is always safe and never a decision. The changes
+# arrive only when you merge:
+#
+#   pdm run tpl:check       # has it moved?
+#   pdm run tpl:update      # bring the rendered ref up to date
+#   pdm run tpl:diff        # read what merging it would change
+#   git tpl merge           # take it
+
+"tpl:update".help = "Re-render the template into refs/tpl/<id> (leaves the worktree alone)"
+"tpl:update".cmd = "git tpl update"
+
+"tpl:diff".help = "Show what merging the template would change"
+"tpl:diff".cmd = "git tpl diff"
+
+"tpl:check".help = "Has the template moved? Exits 1 if merging it would change anything"
+# `update` first, because a fresh clone has no `refs/tpl/*` — neither
+# `git clone` nor `actions/checkout` fetches them — and `update` creates the ref
+# rather than failing, so this works anywhere.
+"tpl:check".composite = ["tpl:update", "_tpl:diff-check"]
+# Leading underscore: PDM hides it from `pdm run --list`. It exists only
+# because `tpl:check` needs two commands and `composite` is how PDM spells that.
+"_tpl:diff-check".cmd = "git tpl diff --exit-code --stat"
+
+# --- project-specific scripts -------------------------------------------------
+#
+# Add your own below this line.
+
+
+# --- Tooling ------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+respect-gitignore = true
+show-fixes = true
+
+[tool.ruff.lint]
+select = [
+    "F",       # pyflakes
+    "E", "W",  # pycodestyle
+    "I",       # isort
+    "UP",      # pyupgrade
+    "B",       # flake8-bugbear
+    "C",       # flake8-comprehensions and mccabe complexity
+    "T100",    # debugger calls and imports
+    "RUF",     # ruff's own
+]
+extend-safe-fixes = ["UP", "C"]
+
+[tool.ruff.lint.per-file-ignores]
+# A package's `__init__` re-exports; that is what it is for.
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["full_example"]
+lines-between-types = 1
+
+[tool.ty.environment]
+# The floor, not the newest. Type-checking against the oldest supported version
+# is what catches a 3.14-only construct slipping into a package that
+# claims 3.11 — which no amount of testing on 3.14 will.
+python-version = "3.11"
+root = ["./src"]
+
+[tool.ty.src]
+include = ["src", "tests"]
+
+[tool.ty.rules]
+# Deliberately empty. Every suppression added here should name the rule and say
+# which release of ty made it necessary, so a later upgrade can retire it.
+
+[tool.pytest]
+addopts = ["-ra"]
+testpaths = ["tests"]
+norecursedirs = [".git", "build", "dist", "site"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "tests/*",
+    # A `__main__` is a two-line dispatcher behind an `if __name__` guard: it
+    # cannot be imported without running, and running it is what the CLI tests
+    # already do through `app`. Measuring it reports 0% for code that has no
+    # behaviour of its own.
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+show_missing = true
+
+[tool.commitizen]
+# `emotional` rather than `cz_conventional_commits`: the same grammar, emoji
+# changelog sections, and it knows how to render the links to noirbizarre/full-example.
+name = "emotional"
+github = "noirbizarre/full-example"
+order_by_scope = true
+# pdm-backend derives the version from the tag, so the tag is the only place it
+# lives and `cz bump` has no file to rewrite.
+version_provider = "scm"
+update_changelog_on_bump = true
+# Remove this line for the first 1.x release.
+major_version_zero = true
+
+# --- project-specific ---------------------------------------------------------
+#
+# Add dependencies, tool configuration and scripts below this line. The
+# template owns everything above it and will keep updating it; everything here
+# is yours, and Git's 3-way merge preserves it across `git tpl update`.

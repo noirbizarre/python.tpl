@@ -1,0 +1,136 @@
+name: ♻️ CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# GitHub's default shell on Linux is `bash -e {0}`, which does not set
+# `pipefail` — so a failing command in the middle of a pipeline is invisible.
+# Naming bash explicitly gets `-e -o pipefail`.
+defaults:
+  run:
+    shell: bash
+
+env:
+  FORCE_COLOR: "1"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: 🕵️ Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v5
+        with:
+          cache: true
+          reshim: true
+
+      - name: Install
+        # Type checking needs the project and test dependencies, even when the
+        # checker itself is installed by an upstream hook.
+        run: pdm install -G lint -G test
+
+      # The hooks themselves, not a parallel set of checks that happens to
+      # agree with them. This is the same command a developer's `git commit`
+      # runs, so a green run here means the hooks actually pass — and a hook
+      # that only ever runs locally is a hook that has already rotted.
+      - name: Run the hooks
+        run: prek run --all-files --show-diff-on-failure
+
+  typecheck:
+    name: 🔎 Types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v5
+        with:
+          cache: true
+          reshim: true
+
+      - name: Install
+        run: pdm install -G lint
+
+      # `ty` runs against the minimum supported Python (3.10),
+      # declared once in `[tool.ty.environment]`. Checking against the newest is
+      # how a 3.14-only construct reaches a package that claims
+      # 3.10 — the matrix below runs the tests on 3.10,
+      # but a test suite only exercises the code paths it happens to reach.
+      - name: Type-check
+        run: pdm run typecheck
+
+  test:
+    name: 🧪 Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Every leg runs to completion: knowing that 3.10 and 3.14 both fail is
+      # a different diagnosis from knowing that only 3.10 does.
+      fail-fast: false
+      matrix:
+        # Rendered from `python_versions`, the same computed list that produces
+        # the trove classifiers and `requires-python`. One answer, three
+        # outputs, and no way for them to disagree — which they did, silently,
+        # in the previous generation of this template.
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pdm-project/setup-pdm@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      # `pdm.toml` sets `use_uv = true`, so PDM resolves and installs through
+      # uv and needs it on PATH. `setup-uv` also points PDM at uv's interpreter
+      # directory, so the matrix version is the one PDM actually uses rather
+      # than one it downloads again.
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Point PDM at uv
+        run: pdm config python.install_root "$(uv python dir --color never)"
+
+      - name: Install
+        run: pdm install -G test
+
+      - name: Run the test suite
+        run: pdm run cover
+
+      # Flagged per interpreter, so a leg that failed to upload shows up as a
+      # missing flag rather than as a coverage drop that did not happen.
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.xml
+          flags: py${{ matrix.python }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # gh-ship runs the release, and it enforces a contract between .github/ship.yml
+  # and the workflows that file names. Finding out mid-release that the contract
+  # is broken is the worst possible moment, so it is checked on every pull
+  # request instead. It needs no secrets: `validate` reads the repository.
+  ship:
+    name: 🚢 Ship setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install gh-ship
+        run: gh extension install noirbizarre/gh-ship
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Validate the release setup
+        run: gh ship validate
+        env:
+          GH_TOKEN: ${{ github.token }}

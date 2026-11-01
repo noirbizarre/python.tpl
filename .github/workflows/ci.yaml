@@ -1,0 +1,54 @@
+name: ♻️ CI
+
+# Lint validates the template; git tpl test checks snapshots and runs each
+# rendered project's installation, checks and hooks in an isolated sandbox.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  FORCE_COLOR: "1"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: 🕵️ Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v5
+        with:
+          cache: true
+          reshim: true
+
+      # Includes git tpl lint; integration tests run in the test job below.
+      - name: Run the hooks
+        run: prek run --all-files --show-diff-on-failure
+
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v5
+        with:
+          cache: true
+          reshim: true
+
+      - name: Run the template's test suite
+        run: mise run test

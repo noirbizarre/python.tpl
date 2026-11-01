@@ -1,0 +1,36 @@
+version: 2
+
+updates:
+  # `pip` is Dependabot's ecosystem for PEP 621 `pyproject.toml`. It raises
+  # pull requests against the declared ranges; it does not understand
+  # `pdm.lock`, so relock before merging — the `pdm-lock-check` hook in
+  # prek.toml fails the commit if you forget, which is the point of having it.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    # Dependabot rebasing its own open pull requests re-runs CI on every push to
+    # main, for branches nobody is waiting on.
+    rebase-strategy: disabled
+    open-pull-requests-limit: 10
+    groups:
+      # One pull request a week for the routine bumps, and an individual one
+      # for every major — which is the only kind that needs reading.
+      python-dependencies:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    rebase-strategy: disabled
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+      include: scope

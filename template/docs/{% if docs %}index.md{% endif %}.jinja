@@ -12,7 +12,7 @@ pip install {{ distribution }}
 pip install git+{{ repo_url }}
 ```
 {% endif %}
-{%- if cli %}
+{%- if cli and cli_name is defined %}
 ## Usage
 
 ```bash

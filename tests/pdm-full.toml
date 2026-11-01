@@ -1,12 +1,6 @@
-# Every optional slot on, PDM stack, gh-ship release flow.
-#
-# The mirror of pdm-minimal: what that case asserts is absent, this asserts is
-# present, so a slot that stopped rendering altogether fails here rather than
-# passing both cases quietly.
-#
-# `python_min = "3.11"` rather than the default, so the case also proves that
-# the range is derived: one answer moves `requires-python`, the classifiers,
-# the ruff target, the ty environment and the CI matrix together.
+# Every slot on, PDM and gh-ship; a non-default Python floor moves all targets.
+snapshot = true
+git = true
 
 [answers]
 distribution = "full-example"
@@ -29,85 +23,22 @@ codecov = true
 gh_ship = true
 
 [expect]
-files = [
-  "pyproject.toml",
-  ".editorconfig",
-  ".markdownlint-cli2.yaml",
-  "zensical.toml",
-  "docs/index.md",
-  "docs/api.md",
-  "docs/adr/README.md",
-  "docs/images/icon.svg",
-  ".github/codecov.yml",
-  ".github/ship.yml",
-  ".github/workflows/docs.yaml",
-  ".github/workflows/ship.yaml",
-  ".github/workflows/prepare-release.yaml",
-  ".github/workflows/publish-release.yaml",
-  "src/full_example/cli.py",
-  "src/full_example/__main__.py",
-]
-absent = [
-  # The two release shapes are mutually exclusive by construction; this is what
-  # proves the `{% if not gh_ship %}` segment really is the negation.
-  ".github/workflows/release.yaml",
-  # `pdm.toml` belongs to the pdm-uv stack alone.
-  "pdm.toml",
-]
+absent = [".github/workflows/release.yaml", "pdm.toml"]
 
 [expect.contains]
-"mise.toml" = [
-  "[hooks]",
-  "prek install --install-hook-types pre-commit,commit-msg",
-  "[ -f pdm.lock ] && pdm install -dG:all",
-]
-"CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "pdm install -G:all"]
-"pyproject.toml" = [
-  'requires-python = ">=3.11"',
-  '"cyclopts',
-  "[project.scripts]",
-  'full-example = "full_example.cli:app"',
-  '"zensical',
-  '"mkdocstrings-python',
-  'Documentation = "https://noirbizarre.github.io/full-example/"',
-  'target-version = "py311"',
-  'python-version = "3.11"',
-  # 3.10 is below the floor and must not appear in the classifiers, even though
-  # it is in data/python.toml.
-  '"Programming Language :: Python :: 3.11"',
-  '"docs:build".cmd = "zensical build"',
-]
-# The matrix, the classifiers and requires-python all move together.
-".github/workflows/ci.yaml" = [
-  '"3.11", "3.12", "3.13", "3.14"',
-  "codecov-action",
-  "gh ship validate",
-]
-# Every task is a PDM script, the docs ones included, and mise.toml stays a
-# toolchain file.
-".github/workflows/docs.yaml" = ["pdm install -G docs", "pdm run docs:build"]
-"zensical.toml" = [
-  'accent = "deep orange"',
-  'site_url = "https://noirbizarre.github.io/full-example/"',
-  # Every nav entry points at a file this case also asserts exists.
-  '{ "API reference" = "api.md" }',
-]
-"docs/api.md" = ["::: full_example"]
-".github/ship.yml" = ["chore(release):"]
-".github/workflows/prepare-release.yaml" = [
-  "pdm run cz",
-  "--files-only",
-  "ship.release.json",
-]
-".github/workflows/publish-release.yaml" = [
-  "pdm build",
-  "gh-action-pypi-publish",
-  "id-token: write",
-]
-# Every conditional badge, asserted where it is rendered rather than assumed.
-"README.md" = [
-  "pypi/v/full-example",
-  "codecov.io",
-  "img.shields.io/github/v/release",
-  "docs-noirbizarre.github.io",
+"pyproject.toml" = ['requires-python = ">=3.11"', 'target-version = "py311"', 'python-version = "3.11"']
+".github/workflows/ci.yaml" = ['"3.11", "3.12", "3.13", "3.14"']
+
+[expect.lacks]
+"pyproject.toml" = ['"Programming Language :: Python :: 3.10"']
+"mise.toml" = ["[tasks"]
+
+[commands]
+env = { PDM_IGNORE_ACTIVE_VENV = "1" }
+after = [
+  "prek validate-config prek.toml",
+  "pdm install -G:all",
+  "pdm run ci",
+  "git add --all",
+  "prek run --all-files --show-diff-on-failure",
 ]

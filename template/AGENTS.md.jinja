@@ -78,8 +78,8 @@ prek.toml                the hooks — builtins and official upstream repositori
   formats for one runner means one of them is stale.
 - Add a second task host. {% if is_pdm %}A `[tasks.test]` in `mise.toml` that runs
   `pdm run test`{% else %}A `[tool.pdm.scripts]` table in `pyproject.toml`{% endif %} looks
-  harmless and is not: the render check
-  (`scripts/check-one-task-host.py` in the template) fails the build for it.
+  harmless but gives each task two names and two places to go stale. Keep tasks
+  in their stack's single task host.
 - Add mypy, black, isort or flake8. ruff and ty cover all four, and running two
   linters means arbitrating between them forever.
 - Add a local hook when an official upstream hook exists. Keep Ruff and ty hook

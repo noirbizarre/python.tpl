@@ -1,0 +1,183 @@
+[project]
+name = "uv-minimal-example"
+description = "uv stack, gh-ship, nothing else"
+authors = [{ name = "Axel H.", email = "noirbizarre@gmail.com" }]
+readme = "README.md"
+# PEP 639, not the `license = { text = "MIT" }` table the previous generation
+# of this template used: that form is deprecated, and the `License ::`
+# classifier it implies is now rejected on upload to PyPI.
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+keywords = ["python"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+# uv_build has no SCM version source, so the version is a literal that
+# commitizen rewrites on bump. That and `version_provider = "pep621"` in
+# [tool.commitizen] are one decision, not two.
+version = "0.1.0"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/noirbizarre/uv-minimal-example"
+Documentation = "https://github.com/noirbizarre/uv-minimal-example#readme"
+Repository = "https://github.com/noirbizarre/uv-minimal-example"
+Issues = "https://github.com/noirbizarre/uv-minimal-example/issues"
+Changelog = "https://github.com/noirbizarre/uv-minimal-example/blob/main/CHANGELOG.md"
+
+
+# --- Build --------------------------------------------------------------------
+
+[build-system]
+# The narrow range is the form `uv init` itself generates, and it is
+# deliberate: uv_build's version tracks uv's, and a build backend newer than
+# the range has, more than once, changed what it does with `module-root`.
+# Dependabot bumps it, and `uv sync` warns when the local uv falls outside it —
+# which is the signal to take that bump.
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "uv_minimal_example"
+module-root = "src"
+
+[tool.uv]
+# The default, stated: a bare `uv sync` installs the project itself, which is
+# what makes `pytest` import `uv_minimal_example` from src rather than from nowhere.
+package = true
+
+
+# --- Dependencies -------------------------------------------------------------
+
+[dependency-groups]
+# `dev` is what a contributor installs. Every other group is a slice CI uses on
+# its own, so the lint job does not install pytest and the test job does not
+# install ty. Group names are spelled the same everywhere — `docs`, never
+# `doc`, which is the mismatch that broke Read the Docs in the previous
+# attempt.
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+    { include-group = "release" },
+]
+
+test = [
+    "pytest>=9.0",
+    "pytest-cov>=6.0",
+    "pytest-sugar>=1.0",
+    "coverage[toml]>=7.6",
+]
+
+lint = [
+    "ruff>=0.17.3",
+    # Astral's type checker. Not mypy: one vendor for the linter, the formatter
+    # and the checker means one release cadence and one set of semantics.
+    #
+    # A floor at the current release rather than an open one, because ty is
+    # pre-1.0 and its rule set still moves between patch versions — an older ty
+    # would accept code this project's CI rejects, which is the wrong way round.
+    "ty>=0.0.95",
+]
+
+release = [
+    "commitizen>=4.0",
+    # `emotional` is a commitizen rule set: Conventional Commits with emoji
+    # changelog sections. Installed rather than fetched at release time, so
+    # `mise run changelog` locally and the release workflow produce the same
+    # file from the same commits.
+    "emotional>=0.5",
+]
+
+
+# --- Tooling ------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+respect-gitignore = true
+show-fixes = true
+
+[tool.ruff.lint]
+select = [
+    "F",       # pyflakes
+    "E", "W",  # pycodestyle
+    "I",       # isort
+    "UP",      # pyupgrade
+    "B",       # flake8-bugbear
+    "C",       # flake8-comprehensions and mccabe complexity
+    "T100",    # debugger calls and imports
+    "RUF",     # ruff's own
+]
+extend-safe-fixes = ["UP", "C"]
+
+[tool.ruff.lint.per-file-ignores]
+# A package's `__init__` re-exports; that is what it is for.
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["uv_minimal_example"]
+lines-between-types = 1
+
+[tool.ty.environment]
+# The floor, not the newest. Type-checking against the oldest supported version
+# is what catches a 3.14-only construct slipping into a package that
+# claims 3.12 — which no amount of testing on 3.14 will.
+python-version = "3.12"
+root = ["./src"]
+
+[tool.ty.src]
+include = ["src", "tests"]
+
+[tool.ty.rules]
+# Deliberately empty. Every suppression added here should name the rule and say
+# which release of ty made it necessary, so a later upgrade can retire it.
+
+[tool.pytest]
+addopts = ["-ra"]
+testpaths = ["tests"]
+norecursedirs = [".git", "build", "dist"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "tests/*",
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+show_missing = true
+
+[tool.commitizen]
+# `emotional` rather than `cz_conventional_commits`: the same grammar, emoji
+# changelog sections, and it knows how to render the links to noirbizarre/uv-minimal-example.
+name = "emotional"
+github = "noirbizarre/uv-minimal-example"
+order_by_scope = true
+# uv_build has no SCM source, so `cz bump` rewrites `project.version` above —
+# and the release workflow runs `uv lock` afterwards, because uv.lock records
+# the version it just changed.
+version_provider = "pep621"
+update_changelog_on_bump = true
+# Remove this line for the first 1.x release.
+major_version_zero = true
+
+# --- project-specific ---------------------------------------------------------
+#
+# Add dependencies, tool configuration below this line. The
+# template owns everything above it and will keep updating it; everything here
+# is yours, and Git's 3-way merge preserves it across `git tpl update`.

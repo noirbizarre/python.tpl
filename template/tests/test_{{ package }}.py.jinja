@@ -14,7 +14,7 @@ def test_exposes_a_version() -> None:
     layout produces and nothing else in the suite would notice.
     """
     assert {{ package }}.__version__
-{%- if cli %}
+{%- if cli and cli_name is defined %}
 
 
 def test_cli_greets(capsys: pytest.CaptureFixture[str]) -> None:

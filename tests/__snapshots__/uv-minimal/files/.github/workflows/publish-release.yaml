@@ -1,0 +1,84 @@
+name: 📦 Publish Release
+
+# Dispatched by `gh ship release` once it has tagged the merge commit and
+# drafted the GitHub Release. Its job is to attach everything the release
+# consists of; gh-ship makes the release public afterwards, so a release is
+# never visible without its artifacts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag being released
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Build exactly what is being released, not a branch tip that may
+          # have moved since.
+          ref: ${{ inputs.tag }}
+
+      - uses: jdx/mise-action@v5
+        with:
+          reshim: true
+          cache: true
+
+      - name: Build the distributions
+        run: uv build
+
+      # Built once and downloaded by both jobs below, so the file uploaded to
+      # the GitHub Release and the file uploaded to PyPI are byte-identical.
+      # Building twice would make that a matter of luck.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+
+  assets:
+    name: 🚀 Attach the assets
+    needs: build
+    runs-on: ubuntu-latest
+    # This is the deployment. `url:` registers it in the repository's
+    # deployment list and links straight to what shipped.
+    environment:
+      name: release
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Upload to the draft release
+        run: gh release upload "${{ inputs.tag }}" dist/* --clobber
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
