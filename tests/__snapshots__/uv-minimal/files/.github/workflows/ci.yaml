@@ -62,7 +62,7 @@ jobs:
 
       # `ty` runs against the minimum supported Python (3.12),
       # declared once in `[tool.ty.environment]`. Checking against the newest is
-      # how a 3.14-only construct reaches a package that claims
+      # how a 3.15-only construct reaches a package that claims
       # 3.12 — the matrix below runs the tests on 3.12,
       # but a test suite only exercises the code paths it happens to reach.
       - name: Type-check
@@ -72,15 +72,15 @@ jobs:
     name: 🧪 Tests (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
     strategy:
-      # Every leg runs to completion: knowing that 3.10 and 3.14 both fail is
-      # a different diagnosis from knowing that only 3.10 does.
+      # Every leg runs to completion: knowing that 3.12 and 3.15 both fail is
+      # a different diagnosis from knowing that only 3.12 does.
       fail-fast: false
       matrix:
         # Rendered from `python_versions`, the same computed list that produces
         # the trove classifiers and `requires-python`. One answer, three
         # outputs, and no way for them to disagree — which they did, silently,
         # in the previous generation of this template.
-        python: ["3.12", "3.13", "3.14"]
+        python: ["3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v7
 

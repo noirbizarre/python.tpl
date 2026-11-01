@@ -78,11 +78,11 @@ jobs:
     name: 🧪 Tests (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
     strategy:
-      # Every leg runs to completion: knowing that 3.10 and 3.14 both fail is
-      # a different diagnosis from knowing that only 3.10 does.
+{%- endraw %}
+      # Every leg runs to completion: knowing that {{ python_min }} and {{ python_max }} both fail is
+      # a different diagnosis from knowing that only {{ python_min }} does.
       fail-fast: false
       matrix:
-{%- endraw %}
         # Rendered from `python_versions`, the same computed list that produces
         # the trove classifiers and `requires-python`. One answer, three
         # outputs, and no way for them to disagree — which they did, silently,

@@ -18,11 +18,7 @@
 # Maintenance: when a version reaches end of life, delete it from BOTH lists in
 # one commit. Every consumer then sees the drop in `git tpl diff`.
 
-supported = ["3.10", "3.11", "3.12", "3.13", "3.14"]
-
-[[versions]]
-value = "3.10"
-minor = 10
+supported = ["3.11", "3.12", "3.13", "3.14", "3.15"]
 
 [[versions]]
 value = "3.11"
@@ -39,3 +35,7 @@ minor = 13
 [[versions]]
 value = "3.14"
 minor = 14
+
+[[versions]]
+value = "3.15"
+minor = 15

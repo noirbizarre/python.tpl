@@ -23,8 +23,8 @@ idiomatic_version_file_enable_tools = []
 [tools]
 # The development interpreter: the newest supported version, so a deprecation
 # shows up here before it shows up in a user's environment. The matrix in
-# ♻️ CI covers 3.10 through 3.14.
-python = "3.14"
+# ♻️ CI covers 3.11 through 3.15.
+python = "3.15"
 uv = "latest"
 prek = "latest"
 typos = "latest"

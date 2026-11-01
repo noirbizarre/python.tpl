@@ -69,7 +69,7 @@ docs: explain the pdm_uv_example entry point
 
 ## Type checking
 
-`ty` runs against Python 3.10, the minimum this package supports,
+`ty` runs against Python 3.11, the minimum this package supports,
 not against the interpreter you happen to have. A construct that only exists in
 a later version is an error here even though it runs fine on your machine —
 that is the check working.

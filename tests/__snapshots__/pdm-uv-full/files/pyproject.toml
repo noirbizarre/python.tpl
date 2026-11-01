@@ -8,7 +8,7 @@ readme = "README.md"
 # classifier it implies is now rejected on upload to PyPI.
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = ["python", "example"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -16,11 +16,11 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Typing :: Typed",
 ]
 # pdm-backend reads the version from the SCM tag, so it is dynamic here and
@@ -223,7 +223,7 @@ ci.composite = ["format:check", "lint", "typecheck", "cover", "docs:build"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 src = ["src"]
 respect-gitignore = true
 show-fixes = true
@@ -251,9 +251,9 @@ lines-between-types = 1
 
 [tool.ty.environment]
 # The floor, not the newest. Type-checking against the oldest supported version
-# is what catches a 3.14-only construct slipping into a package that
-# claims 3.10 — which no amount of testing on 3.14 will.
-python-version = "3.10"
+# is what catches a 3.15-only construct slipping into a package that
+# claims 3.11 — which no amount of testing on 3.15 will.
+python-version = "3.11"
 root = ["./src"]
 
 [tool.ty.src]

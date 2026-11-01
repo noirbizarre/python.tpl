@@ -25,7 +25,7 @@ not even a delegation. `mise` here installs the toolchain and nothing more.
 
 - **Python 3.11 is the floor.** `ty` checks against it, and the CI
   matrix runs the tests on it. A construct newer than 3.11 is an
-  error even though the development interpreter is 3.14.
+  error even though the development interpreter is 3.15.
 - **The supported range is derived, not written down.** `requires-python`, the
   trove classifiers, the ruff `target-version`, the ty environment and the CI
   matrix all come from one answer in the template. Do not edit one of them to

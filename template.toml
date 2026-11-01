@@ -154,7 +154,7 @@ default = "pdm-uv"
 type = "choice"
 prompt = "Minimum supported Python"
 choices_from = "data.python.supported"
-default = "3.10"
+default = "3.11"
 
 # --- Optional slots ---------------------------------------------------------
 #
@@ -254,7 +254,7 @@ python_max = "{{ python_versions | last }}"
 # before it shows up in a user's environment.
 python_default = "{{ python_max }}"
 
-# ruff and ty want `py310`; pyproject wants `3.10`. Derived once so they cannot
+# ruff and ty want `py311`; pyproject wants `3.11`. Derived once so they cannot
 # disagree, which they did in the previous attempt.
 ruff_target = "py{{ python_min | replace('.', '') }}"
 

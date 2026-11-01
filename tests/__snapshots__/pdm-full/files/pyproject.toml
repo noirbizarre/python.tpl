@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Typing :: Typed",
 ]
 # pdm-backend reads the version from the SCM tag, so it is dynamic here and
@@ -250,8 +251,8 @@ lines-between-types = 1
 
 [tool.ty.environment]
 # The floor, not the newest. Type-checking against the oldest supported version
-# is what catches a 3.14-only construct slipping into a package that
-# claims 3.11 — which no amount of testing on 3.14 will.
+# is what catches a 3.15-only construct slipping into a package that
+# claims 3.11 — which no amount of testing on 3.15 will.
 python-version = "3.11"
 root = ["./src"]
 
