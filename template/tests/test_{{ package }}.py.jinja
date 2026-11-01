@@ -34,4 +34,21 @@ def test_cli_greets(capsys: pytest.CaptureFixture[str]) -> None:
     app(["hello", "--name", "test"], result_action="return_value")
 
     assert "Hello, test!" in capsys.readouterr().out
+
+
+def test_cli_environment_defaults(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Environment defaults use the CLI namespace; explicit arguments win."""
+    from {{ package }}.cli import app
+
+    monkeypatch.setenv("{{ cli_name | replace('-', '_') | upper }}_NAME", "environment")
+
+    app(["hello"], result_action="return_value")
+
+    assert "Hello, environment!" in capsys.readouterr().out
+
+    app(["hello", "--name", "argument"], result_action="return_value")
+
+    assert "Hello, argument!" in capsys.readouterr().out
 {%- endif %}

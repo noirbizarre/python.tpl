@@ -59,6 +59,15 @@ absent = [
   '[project.scripts]',
   'uv-full = "uv_full_example.cli:app"',
   'version = "0.1.0"',
+  '"rich>=14.0"',
+]
+"src/uv_full_example/cli.py" = [
+  'console = Console()',
+  'error_console = Console(stderr=True)',
+  'console=console,',
+  'error_console=error_console,',
+  'cyclopts.config.Env("UV_FULL_", command=False)',
+  'install_rich_traceback(console=error_console)',
 ]
 "mise.toml" = [
   "uv run --group docs zensical build",

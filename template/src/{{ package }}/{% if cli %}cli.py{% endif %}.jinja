@@ -4,13 +4,25 @@ from __future__ import annotations
 
 import cyclopts
 
+from rich.console import Console
+from rich.traceback import install as install_rich_traceback
+
 from {{ package }} import __version__
+
+console = Console()
+error_console = Console(stderr=True)
 
 app = cyclopts.App(
     name="{{ cli_name }}",
+    console=console,
+    error_console=error_console,
+    config=[
+        cyclopts.config.Env("{{ cli_name | replace('-', '_') | upper }}_", command=False),
+    ],
     help="{{ description }}",
     version=__version__,
 )
+install_rich_traceback(console=error_console)
 
 
 @app.command
