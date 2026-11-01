@@ -28,6 +28,7 @@ absent = [".github/workflows/release.yaml", "pdm.toml"]
 [expect.contains]
 "pyproject.toml" = ['requires-python = ">=3.11"', 'target-version = "py311"', 'python-version = "3.11"']
 ".github/workflows/ci.yaml" = ['"3.11", "3.12", "3.13", "3.14", "3.15"']
+".github/workflows/docs.yaml" = ["  pull_request:", "pdm install -G docs", "pdm run docs:build", "        if: github.event_name != 'pull_request'", "    if: github.event_name != 'pull_request'", "format('pages-pr-{0}', github.event.number)", "    permissions:\n      pages: write\n      id-token: write"]
 
 [expect.lacks]
 "pyproject.toml" = ['"Programming Language :: Python :: 3.10"']

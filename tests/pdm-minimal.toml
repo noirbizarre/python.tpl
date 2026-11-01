@@ -22,7 +22,7 @@ gh_ship = false
 
 [expect]
 # Conditional release shapes must never coexist.
-absent = [".github/workflows/prepare-release.yaml", "pdm.toml", "zensical.toml"]
+absent = [".github/workflows/prepare-release.yaml", ".github/workflows/docs.yaml", "pdm.toml", "zensical.toml"]
 
 [expect.contains]
 "pyproject.toml" = ['build-backend = "pdm.backend"', 'dynamic = ["version"]', "[tool.pdm.scripts]"]

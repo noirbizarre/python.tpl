@@ -26,6 +26,7 @@ gh_ship = true
 "pdm.toml" = ["use_uv = true"]
 "pyproject.toml" = ['build-backend = "pdm.backend"', "[tool.pdm.scripts]", 'version_provider = "scm"']
 ".github/workflows/ci.yaml" = ["pdm config python.install_root"]
+".github/workflows/docs.yaml" = ["  pull_request:", "pdm install -G docs", "pdm run docs:build", "        if: github.event_name != 'pull_request'", "    if: github.event_name != 'pull_request'", "format('pages-pr-{0}', github.event.number)", "    permissions:\n      pages: write\n      id-token: write"]
 
 [expect.lacks]
 "mise.toml" = ["[tasks"]

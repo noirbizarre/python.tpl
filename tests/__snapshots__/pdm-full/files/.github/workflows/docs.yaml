@@ -1,6 +1,7 @@
 name: 📚 Documentation
 
 on:
+  pull_request:
   push:
     branches: [main]
     paths:
@@ -9,14 +10,9 @@ on:
       - .github/workflows/docs.yaml
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Only one deployment at a time; never cancel one midway.
+# Isolate PR builds; only one deployment at a time, never cancelled midway.
 concurrency:
-  group: pages
+  group: ${{ github.event_name == 'pull_request' && format('pages-pr-{0}', github.event.number) || 'pages' }}
   cancel-in-progress: false
 
 defaults:
@@ -47,13 +43,18 @@ jobs:
         run: pdm run docs:build
 
       - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
         with:
           path: site
 
   deploy:
     name: 🚀 Deploy
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -30,7 +30,7 @@ absent = [".github/workflows/prepare-release.yaml", "pdm.toml"]
 ".github/workflows/release.yaml" = ["uv build", "uv lock", "gh-action-pypi-publish"]
 # The CLI name deliberately differs from the distribution name.
 "pyproject.toml" = ['uv-full = "uv_full_example.cli:app"']
-".github/workflows/docs.yaml" = ["uv sync --group docs", "mise run docs:build"]
+".github/workflows/docs.yaml" = ["  pull_request:", "uv sync --group docs", "mise run docs:build", "        if: github.event_name != 'pull_request'", "    if: github.event_name != 'pull_request'", "format('pages-pr-{0}', github.event.number)", "    permissions:\n      pages: write\n      id-token: write"]
 
 [expect.lacks]
 "pyproject.toml" = ["[tool.pdm.scripts]"]

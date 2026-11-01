@@ -21,7 +21,7 @@ codecov = false
 gh_ship = true
 
 [expect]
-absent = [".github/workflows/release.yaml", "pdm.toml", "zensical.toml"]
+absent = [".github/workflows/release.yaml", ".github/workflows/docs.yaml", "pdm.toml", "zensical.toml"]
 
 [expect.contains]
 "pyproject.toml" = ['build-backend = "uv_build"', 'version = "0.1.0"', 'version_provider = "pep621"']
