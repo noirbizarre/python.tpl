@@ -105,6 +105,10 @@ lint = [
 docs = [
     "zensical>=0.0.56",
     "mkdocstrings-python>=1.12",
+    # Temporary workaround for mkdocstrings 1.0.6, selected for Python 3.10.
+    # Remove once Python 3.10 can resolve a fixed mkdocstrings, or support is dropped.
+    # https://github.com/mkdocstrings/mkdocstrings/issues/829
+    "pymdown-extensions<12.2",
 ]
 
 release = [
