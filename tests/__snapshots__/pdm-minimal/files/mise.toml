@@ -60,8 +60,8 @@ _.python.venv = { path = ".venv", create = true }
 # A fresh render has no dependency lockfile yet. Install hooks immediately,
 # but leave the first dependency install to the setup instructions.
 postinstall = [
-  "prek install --install-hook-types pre-commit,commit-msg",
-  "[ -f pdm.lock ] && pdm install -dG:all",
+  "prek install",
+  "[ ! -f pdm.lock ] || pdm install -dG:all",
 ]
 
 # --- project-specific ---------------------------------------------------------

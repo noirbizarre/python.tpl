@@ -34,6 +34,9 @@ absent = [".github/workflows/prepare-release.yaml", "pdm.toml", "zensical.toml"]
 env = { PDM_IGNORE_ACTIVE_VENV = "1" }
 after = [
   "prek validate-config prek.toml",
+  "python -c \"import pathlib, subprocess, tomllib; subprocess.run(tomllib.loads(pathlib.Path('mise.toml').read_text())['hooks']['postinstall'][0], shell=True, check=True)\"",
+  "test -x .git/hooks/pre-commit",
+  "test -x .git/hooks/commit-msg",
   "pdm install -G:all",
   "pdm run ci",
   "git add --all",
