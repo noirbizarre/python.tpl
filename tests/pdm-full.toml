@@ -31,6 +31,8 @@ gh_ship = true
 [expect]
 files = [
   "pyproject.toml",
+  ".editorconfig",
+  ".markdownlint-cli2.yaml",
   "zensical.toml",
   "docs/index.md",
   "docs/api.md",

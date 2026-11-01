@@ -25,7 +25,7 @@ for path in sorted(glob.glob("**/*.toml", recursive=True)):
     except tomllib.TOMLDecodeError as error:
         failures.append(f"{path}: {error}")
 
-for pattern in (".github/**/*.yml", ".github/**/*.yaml"):
+for pattern in (".github/**/*.yml", ".github/**/*.yaml", ".markdownlint-cli2.yaml"):
     for path in sorted(glob.glob(pattern, recursive=True)):
         try:
             yaml.safe_load(pathlib.Path(path).read_text())

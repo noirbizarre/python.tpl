@@ -29,6 +29,8 @@ files = [
   "pyproject.toml",
   "mise.toml",
   "prek.toml",
+  ".editorconfig",
+  ".markdownlint-cli2.yaml",
   ".github/ship.yml",
   ".github/workflows/ship.yaml",
   ".github/workflows/prepare-release.yaml",
@@ -55,6 +57,9 @@ absent = [
   'version_provider = "pep621"',
   'requires-python = ">=3.12"',
   'target-version = "py312"',
+  '"ruff>=0.17.3"',
+  '"ty>=0.0.95"',
+  'include = ["src", "tests"]',
 ]
 # The task host is mise on this stack, so the tasks are real rather than
 # delegations, and pyproject has no scripts table.
@@ -66,7 +71,17 @@ absent = [
   "[ -f uv.lock ] && uv sync --locked --all-extras --all-groups",
 ]
 "CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "mise run install"]
-"prek.toml" = ["uv lock --check", "uv run --group release cz check"]
+"prek.toml" = [
+  'repo = "https://github.com/astral-sh/uv-pre-commit"',
+  'id = "uv-lock", args = ["--check"]',
+  'args = ["--locked", "--all-groups"]',
+  'repo = "https://github.com/commitizen-tools/commitizen"',
+  'rev = "v0.17.3"',
+  'rev = "v0.0.95"',
+  'id = "markdownlint-cli2"',
+  'id = "editorconfig-checker"',
+]
+".editorconfig" = ["max_line_length = 100"]
 ".github/workflows/ci.yaml" = ["uv sync --group test", '"3.12", "3.13", "3.14"']
 # `pep621` means the bump rewrites pyproject, so uv.lock records a version that
 # has just moved and has to be refreshed in the same commit.

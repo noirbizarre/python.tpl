@@ -46,10 +46,9 @@ jobs:
 {%- endraw %}
 
       - name: Install
-        # The lint job needs `release` as well: the `cz check` hook runs
-        # commitizen, and prek's hooks are `local` by design — they run the
-        # tools this project installed, not tools prek fetched.
-        run: {% if is_pdm %}pdm install -G lint -G release{% else %}uv sync --group lint --group release{% endif %}
+        # Type checking needs the project and test dependencies, even when the
+        # checker itself is installed by an upstream hook.
+        run: {% if is_pdm %}pdm install -G lint -G test{% else %}uv sync --all-groups{% endif %}
 {%- raw %}
 
       # The hooks themselves, not a parallel set of checks that happens to

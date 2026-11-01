@@ -20,7 +20,7 @@ pdm run --list      # everything
 `pyproject.toml` is where every task lives, including `spell`, `lint:actions`
 and the `tpl:*` set. `mise.toml` has no `[tasks]` table and must not grow one —
 not even a delegation. `mise` here installs the toolchain and nothing more.
-{% else %}
+{%- else %}
 ```bash
 mise run install    # the environment
 mise run ci         # format:check, lint, typecheck, cover{% if docs %}, docs:build{% endif %}
@@ -34,7 +34,7 @@ grow one.
 
 Always `mise run <task>`, never bare `mise <task>`: a mise builtin subcommand
 of the same name wins silently and says nothing about the task it shadowed.
-{% endif %}
+{%- endif %}
 
 ## Constraints that are not obvious
 
@@ -51,7 +51,7 @@ of the same name wins silently and says nothing about the task it shadowed.
   no version string to edit, and adding one would be a second, divergent
   source of truth.{% else %} It is `project.version` in `pyproject.toml`, and
   `cz bump` owns it. Do not edit it by hand; if you do, `uv.lock` is
-  immediately stale and the `uv-lock-check` hook fails the commit.{% endif %}
+  immediately stale and the `uv-lock` hook fails the commit.{% endif %}
 - **Commit subjects are Conventional Commits**, validated on `commit-msg` and
   used verbatim as changelog entries.
 - **`# --- project-specific ---` markers** separate template-owned lines from
@@ -60,14 +60,16 @@ of the same name wins silently and says nothing about the task it shadowed.
 
 ## Where things live
 
-```
+```text
 src/{{ package }}/       the package
 tests/                   pytest, mirroring src/
 {% if docs %}docs/                    the documentation site (zensical.toml drives the nav)
 {% endif %}.github/workflows/       CI and release
 mise.toml                the toolchain{% if is_pdm %} — no tasks, by design{% else %} and the tasks{% endif %}
 pyproject.toml           the package{% if is_pdm %}, and the tasks{% endif %}
-prek.toml                the hooks — almost all `local`, running the installed tools
+prek.toml                the hooks — builtins and official upstream repositories
+.editorconfig            shared editor and whitespace conventions
+.markdownlint-cli2.yaml   Markdown rules and output formatting
 ```
 
 ## Do not
@@ -80,7 +82,7 @@ prek.toml                the hooks — almost all `local`, running the installed
   (`scripts/check-one-task-host.py` in the template) fails the build for it.
 - Add mypy, black, isort or flake8. ruff and ty cover all four, and running two
   linters means arbitrating between them forever.
-- Pin a tool version in `prek.toml` that is already floored in
-  `[dependency-groups]`. The two drift, and the hook then disagrees with CI.
+- Add a local hook when an official upstream hook exists. Keep Ruff and ty hook
+  revisions aligned with their minimum versions in `[dependency-groups]`.
 - Commit `.venv`{% if is_pdm %}, `src/{{ package }}/VERSION`{% endif %} or
   `coverage.xml`.

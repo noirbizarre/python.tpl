@@ -129,14 +129,14 @@ test = [
 ]
 
 lint = [
-    "ruff>=0.14",
+    "ruff>=0.17.3",
     # Astral's type checker. Not mypy: one vendor for the linter, the formatter
     # and the checker means one release cadence and one set of semantics.
     #
     # A floor at the current release rather than an open one, because ty is
     # pre-1.0 and its rule set still moves between patch versions — an older ty
     # would accept code this project's CI rejects, which is the wrong way round.
-    "ty>=0.0.72",
+    "ty>=0.0.95",
 ]
 {% if docs %}
 docs = [
@@ -292,6 +292,9 @@ lines-between-types = 1
 # claims {{ python_min }} — which no amount of testing on {{ python_max }} will.
 python-version = "{{ python_min }}"
 root = ["./src"]
+
+[tool.ty.src]
+include = ["src", "tests"]
 
 [tool.ty.rules]
 # Deliberately empty. Every suppression added here should name the rule and say

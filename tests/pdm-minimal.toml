@@ -32,6 +32,8 @@ files = [
   "pyproject.toml",
   "mise.toml",
   "prek.toml",
+  ".editorconfig",
+  ".markdownlint-cli2.yaml",
   "typos.toml",
   "LICENSE",
   "README.md",
@@ -83,6 +85,9 @@ absent = [
   "[tool.pdm.scripts]",
   'target-version = "py310"',
   'python-version = "3.10"',
+  '"ruff>=0.17.3"',
+  '"ty>=0.0.95"',
+  'include = ["src", "tests"]',
   # The oldest and the newest supported version both reach the classifiers,
   # from the same computed list the CI matrix is rendered from.
   '"Programming Language :: Python :: 3.10"',
@@ -112,7 +117,22 @@ absent = [
   "[ -f pdm.lock ] && pdm install -dG:all",
 ]
 "CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "pdm install -G:all"]
-"prek.toml" = ["pdm lock --check", "pdm run cz check"]
+"prek.toml" = [
+  'repo = "https://github.com/pdm-project/pdm"',
+  'id = "pdm-lock-check"',
+  'repo = "https://github.com/astral-sh/ruff-pre-commit"',
+  'rev = "v0.17.3"',
+  'repo = "https://github.com/astral-sh/ty-pre-commit"',
+  'rev = "v0.0.95"',
+  'entry = "pdm run typecheck"',
+  'repo = "https://github.com/crate-ci/typos"',
+  'repo = "https://github.com/commitizen-tools/commitizen"',
+  'id = "markdownlint-cli2"',
+  'additional_dependencies = ["markdownlint-cli2-formatter-pretty"]',
+  'id = "editorconfig-checker"',
+]
+".editorconfig" = ["max_line_length = 100"]
+".markdownlint-cli2.yaml" = ["line_length: 120", "markdownlint-cli2-formatter-pretty"]
 ".github/workflows/ci.yaml" = [
   "pdm install -G test",
   '"3.10", "3.11", "3.12", "3.13", "3.14"',

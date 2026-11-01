@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD013 MD033 -->
 <h1 align="center">python.tpl</h1>
 
 <p align="center"><strong>Base stack for Python projects, as a <a href="https://github.com/noirbizarre/git-tpl">git-tpl</a> template</strong></p>
@@ -8,6 +9,8 @@
   </a>
   <img src="https://img.shields.io/github/license/noirbizarre/python.tpl" alt="License">
 </p>
+
+<!-- markdownlint-enable MD013 MD033 -->
 
 ---
 
@@ -29,12 +32,20 @@ git tpl init https://github.com/noirbizarre/python.tpl my-project
 | Lint & format | [ruff](https://docs.astral.sh/ruff/) |
 | Types | [ty](https://github.com/astral-sh/ty) |
 | Spelling | [typos](https://github.com/crate-ci/typos) |
+| File style | EditorConfig and editorconfig-checker |
+| Markdown | markdownlint-cli2 with its pretty output formatter |
 | Tests | pytest, coverage, `src/` layout |
 | Commits & changelog | commitizen with [emotional](https://github.com/noirbizarre/emotional) |
 | CI | GitHub Actions: lint, types, a Python matrix |
 | License | MIT |
 
 CI and the license are not optional. Everything else is a question.
+
+Hooks prefer prek builtins and official upstream repositories. Local hooks are
+reserved for project-specific commands without a suitable upstream hook. Update
+Ruff and ty hook revisions together with their dependency minimums so hooks and
+project tasks use the same baseline. `.editorconfig` and `.markdownlint-cli2.yaml`
+provide shared file-style rules in both this repository and generated projects.
 
 ## The three stacks
 
@@ -98,7 +109,8 @@ and a GitHub `${{ }}` expression that escaped a `{% raw %}` block. `git tpl
 test` runs `tests/*.toml` — and `absent` is the assertion that earns its keep,
 because the conditional-path idiom fails by producing a file rather than by
 erroring. `render:check` installs the rendered project and runs its own ruff,
-ty, pytest and docs build, which is the only layer that would catch a
+ty, pytest and docs build, plus the actual prek hooks (including Markdownlint
+and EditorConfig), which is the only layer that would catch a
 `pyproject.toml` that renders perfectly and then fails to install.
 
 The cases are also the answer files: `tests/*.toml` is read by `git tpl test`

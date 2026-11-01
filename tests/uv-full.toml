@@ -27,6 +27,8 @@ gh_ship = false
 
 [expect]
 files = [
+  ".editorconfig",
+  ".markdownlint-cli2.yaml",
   ".github/workflows/release.yaml",
   ".github/workflows/docs.yaml",
   ".github/codecov.yml",

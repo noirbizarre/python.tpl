@@ -30,6 +30,8 @@ files = [
   # The one file that exists on this stack and on neither of the others.
   "pdm.toml",
   "pyproject.toml",
+  ".editorconfig",
+  ".markdownlint-cli2.yaml",
   "zensical.toml",
   ".github/workflows/prepare-release.yaml",
 ]
@@ -53,7 +55,7 @@ absent = [".github/workflows/release.yaml"]
   "[ -f pdm.lock ] && pdm install -dG:all",
 ]
 "CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "pdm install -G:all"]
-"prek.toml" = ["pdm lock --check"]
+"prek.toml" = ['repo = "https://github.com/pdm-project/pdm"', 'id = "pdm-lock-check"', 'entry = "pdm run typecheck"']
 # CI needs uv on PATH for PDM to resolve through it, and PDM pointed at uv's
 # interpreters so the matrix version is the one actually used.
 ".github/workflows/ci.yaml" = [

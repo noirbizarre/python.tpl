@@ -1,0 +1,27 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.py]
+indent_size = 4
+max_line_length = {{ line_length }}
+
+[*.{yml,yaml,toml,json}]
+indent_size = 2
+
+[pyproject.toml]
+# Python tooling conventionally uses four-space indentation.
+indent_size = 4
+
+[*.md]
+indent_size = 2
+
+[tests/{fixtures,snapshots}/**]
+# Recorded output must retain its exact whitespace.
+insert_final_newline = unset
+trim_trailing_whitespace = false

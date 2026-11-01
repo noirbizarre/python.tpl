@@ -160,6 +160,13 @@ else
   fi
 fi
 
+echo "==> The project's hooks"
+# Hooks discover tracked files. A disposable repository also lets actionlint
+# and other Git-aware tools inspect the rendered project normally.
+git init --quiet
+git add --all
+prek run --all-files --show-diff-on-failure
+
 echo
 echo "$case is a working project."
 """

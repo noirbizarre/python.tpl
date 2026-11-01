@@ -56,6 +56,20 @@ is deliberate, and there is no shim bridging the two: a `mise run test` that
 shelled out to `pdm run test` would give every task two names, two places to
 look when it misbehaves, and two chances to go stale against each other.
 
+## Hooks and file style
+
+`prek.toml` uses prek builtins and official upstream hooks. Use `repo = "local"`
+only for project-specific checks without an appropriate upstream hook. Run all
+hooks with `{{ cmd.task("hooks") }}`.
+
+`.editorconfig` shares whitespace conventions with editors; its checker leaves
+Python to Ruff and Markdown to markdownlint-cli2. Markdown rules and the pretty
+output formatter are configured in `.markdownlint-cli2.yaml`.
+
+When updating hook revisions with `prek auto-update`, update the Ruff and ty
+minimum versions in `pyproject.toml` alongside them, and run the hooks and CI
+tasks together.
+
 ## Commits
 
 Conventional Commits, validated on `commit-msg` by `cz check` with the
@@ -63,7 +77,7 @@ Conventional Commits, validated on `commit-msg` by `cz check` with the
 set writes `CHANGELOG.md` at release time, so the subject you write is the
 changelog entry your users read.
 
-```
+```text
 feat(parser): support nested blocks
 fix: do not swallow the underlying error
 docs: explain the {{ package }} entry point

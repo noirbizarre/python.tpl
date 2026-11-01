@@ -29,30 +29,48 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/python-jsonschema/check-jsonschema"
-rev = "0.33.3"
+rev = "0.39.0"
 hooks = [
   { id = "check-github-workflows", files = "^\\.github/workflows/" },
   { id = "check-dependabot", files = "^\\.github/dependabot\\.yml$" },
 ]
 
 [[repos]]
-repo = "local"
+repo = "https://github.com/rhysd/actionlint"
+rev = "v1.7.12"
 
 [[repos.hooks]]
-id = "actionlint"
-name = "actionlint"
-language = "system"
-entry = "actionlint"
+id = "actionlint-system"
 # This repository's own workflows only. The rendered ones under `template/` are
 # Jinja and are linted after rendering, by the render job.
 files = "^\\.github/workflows/.*\\.ya?ml$"
 
-[[repos.hooks]]
-id = "typos"
-name = "typos"
-language = "system"
-entry = "typos"
-pass_filenames = false
+[[repos]]
+repo = "https://github.com/crate-ci/typos"
+rev = "v1.51.1"
+hooks = [{ id = "typos", args = ["--force-exclude"] }]
+
+[[repos]]
+repo = "https://github.com/DavidAnson/markdownlint-cli2"
+rev = "v0.24.0"
+# Raw Jinja Markdown is checked after rendering, not as Markdown source.
+hooks = [
+  { id = "markdownlint-cli2", args = ["--fix"], additional_dependencies = ["markdownlint-cli2-formatter-pretty"], exclude = "^template/" },
+]
+
+[[repos]]
+repo = "https://github.com/editorconfig-checker/editorconfig-checker.python"
+rev = "3.11.1"
+# Rendered templates are checked by render:check; raw Jinja has its own layout.
+hooks = [{ id = "editorconfig-checker", exclude = "^template/|\\.(py|md)$" }]
+
+[[repos]]
+repo = "https://github.com/commitizen-tools/commitizen"
+rev = "v4.19.3"
+hooks = [{ id = "commitizen", additional_dependencies = ["emotional==0.6.1"] }]
+
+[[repos]]
+repo = "local"
 
 # The three things `git tpl lint` catches that nothing else does: an undeclared
 # name in a rendered file, a conditional path segment that renders to a bare
@@ -73,10 +91,3 @@ name = "git tpl test"
 language = "system"
 entry = "git tpl test . --dirty"
 pass_filenames = false
-
-[[repos.hooks]]
-id = "commitizen"
-name = "cz check"
-language = "system"
-entry = "uvx --from commitizen --with emotional cz check --commit-msg-file"
-stages = ["commit-msg"]

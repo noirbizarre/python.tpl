@@ -1,15 +1,10 @@
-{%- import "macros/commands.jinja" as cmd -%}
 # prek's native TOML configuration. There is deliberately no
 # `.pre-commit-config.yaml`: two configuration formats for one hook runner is
 # one too many, and the YAML one would be the stale copy.
 #
-# Almost every hook here is `builtin` or `local`, on purpose. A `repo` with a
-# `rev` is a version pin that duplicates a floor already stated in pyproject's
-# `[dependency-groups]`, and the two drift — the previous generation of this
-# template shipped a ruff hook three minor versions behind its own dependency
-# floor for months, so the hook and CI disagreed about what "lint" meant. A
-# `local` hook running the ruff that `{% if is_pdm %}pdm install{% else %}uv sync{% endif %}` put in the
-# environment cannot disagree with itself.
+# Prefer prek builtins and official upstream hooks. Reserve `repo = "local"`
+# for project-specific checks without an upstream hook. Update Ruff and ty
+# revisions alongside their minimum versions in pyproject.toml.
 
 default_install_hook_types = ["pre-commit", "commit-msg"]
 
@@ -33,20 +28,18 @@ hooks = [
   { id = "trailing-whitespace", exclude = "^tests/(fixtures|snapshots)/" },
 ]
 
-# The only pinned external repository. These validate files whose shape is
-# otherwise not checked until something fails in CI, and they are schemas
-# rather than a tool this project also depends on — so there is no floor for
-# the `rev` to drift from.
+# Validate workflow and dependency-update configuration against their schemas.
 [[repos]]
 repo = "https://github.com/python-jsonschema/check-jsonschema"
-rev = "0.33.3"
+rev = "0.39.0"
 hooks = [
   { id = "check-github-workflows" },
   { id = "check-dependabot" },
 ]
 
 [[repos]]
-repo = "local"
+repo = "https://github.com/rhysd/actionlint"
+rev = "v1.7.12"
 
 # `-config-file` explicitly, rather than relying on actionlint finding
 # .github/actionlint.yml on its own: it discovers the config by walking up to
@@ -58,32 +51,27 @@ repo = "local"
 # Suppressions belong in that file and not as flags here, so this and the prek
 # hook cannot drift apart.
 [[repos.hooks]]
-id = "actionlint"
-name = "actionlint"
-language = "system"
-entry = "actionlint -config-file .github/actionlint.yml"
+id = "actionlint-system"
+args = ["-config-file", ".github/actionlint.yml"]
 files = "^\\.github/workflows/.*\\.ya?ml$"
 
-[[repos.hooks]]
-id = "typos"
-name = "typos"
-language = "system"
-entry = "typos"
-pass_filenames = false
+[[repos]]
+repo = "https://github.com/crate-ci/typos"
+rev = "v1.51.1"
+# Upstream defaults to writing fixes; keep spelling checks report-only.
+hooks = [{ id = "typos", args = ["--force-exclude"] }]
 
-[[repos.hooks]]
-id = "ruff-check"
-name = "ruff check"
-language = "system"
-entry = "ruff check --fix --force-exclude"
-types = ["python"]
+[[repos]]
+repo = "https://github.com/astral-sh/ruff-pre-commit"
+rev = "v0.17.3"
+hooks = [
+  { id = "ruff-check", args = ["--fix"] },
+  { id = "ruff-format" },
+]
 
-[[repos.hooks]]
-id = "ruff-format"
-name = "ruff format"
-language = "system"
-entry = "ruff format --force-exclude"
-types = ["python"]
+[[repos]]
+repo = "https://github.com/astral-sh/ty-pre-commit"
+rev = "v0.0.95"
 
 # The type checker runs over the whole project rather than over the staged
 # files: a type error is rarely in the file that introduced it, and checking
@@ -91,52 +79,51 @@ types = ["python"]
 # that do.
 [[repos.hooks]]
 id = "ty"
-name = "ty check"
-language = "system"
 {%- if is_pdm %}
+# The upstream entry uses `uv check`, which would create a second lockfile for
+# PDM projects. Keep PDM's environment and task while using the official hook's
+# whole-project, always-run behavior.
+language = "system"
 entry = "pdm run typecheck"
 {%- else %}
-entry = "uv run --group lint ty check src tests"
+args = ["--locked", "--all-groups"]
 {%- endif %}
-types = ["python"]
-pass_filenames = false
 
 # The lockfile has to match pyproject, and the check is the stack's own.
-[[repos.hooks]]
+[[repos]]
 {%- if is_pdm %}
-id = "pdm-lock-check"
-name = "pdm lock --check"
-language = "system"
-# `--check` exits non-zero when pdm.lock no longer satisfies pyproject and
-# writes nothing, so a commit that adds a dependency without relocking fails
-# here rather than in every contributor's next install.
-entry = "{{ cmd.lock_check() }}"
-files = "^(pyproject\\.toml|{{ cmd.lockfile() | replace('.', '\\\\.') }})$"
+repo = "https://github.com/pdm-project/pdm"
+rev = "2.29.5"
+hooks = [{ id = "pdm-lock-check", files = "^(pyproject\\.toml|pdm\\.lock)$" }]
 {%- else %}
-id = "uv-lock-check"
-name = "uv lock --check"
-language = "system"
+repo = "https://github.com/astral-sh/uv-pre-commit"
+rev = "0.13.6"
 # `--check` is the non-writing form of `uv lock`. Not `--frozen`, which
 # asserts that the lock is *used* rather than that it is *current*.
-entry = "{{ cmd.lock_check() }}"
-files = "^(pyproject\\.toml|{{ cmd.lockfile() | replace('.', '\\\\.') }})$"
+hooks = [{ id = "uv-lock", args = ["--check"] }]
 {%- endif %}
-pass_filenames = false
+
+[[repos]]
+repo = "https://github.com/DavidAnson/markdownlint-cli2"
+rev = "v0.24.0"
+hooks = [
+  { id = "markdownlint-cli2", args = ["--fix"], additional_dependencies = ["markdownlint-cli2-formatter-pretty"] },
+]
+
+[[repos]]
+repo = "https://github.com/editorconfig-checker/editorconfig-checker.python"
+rev = "3.11.1"
+# Python and Markdown have dedicated formatters; fixtures preserve exact bytes.
+hooks = [{ id = "editorconfig-checker", exclude = "\\.(py|md)$|^tests/(fixtures|snapshots)/" }]
 
 # Conventional Commits, checked on `commit-msg` by the same commitizen and the
 # same `emotional` rule set that writes the changelog. One grammar, one
 # implementation — a separate node-based commitlint would be a second opinion
 # about what a valid subject is, and the two would eventually disagree.
-[[repos.hooks]]
-id = "commitizen"
-name = "cz check"
-language = "system"
-{%- if is_pdm %}
-entry = "pdm run cz check --commit-msg-file"
-{%- else %}
-entry = "uv run --group release cz check --commit-msg-file"
-{%- endif %}
-stages = ["commit-msg"]
+[[repos]]
+repo = "https://github.com/commitizen-tools/commitizen"
+rev = "v4.19.3"
+hooks = [{ id = "commitizen", additional_dependencies = ["emotional==0.6.1"] }]
 
 # --- project-specific hooks ---------------------------------------------------
 #
@@ -146,6 +133,9 @@ stages = ["commit-msg"]
 #
 # The pattern these projects use is a grep that fails the commit when a
 # dependency escapes the module that is supposed to contain it:
+#
+#   [[repos]]
+#   repo = "local"
 #
 #   [[repos.hooks]]
 #   id = "http-isolation"
