@@ -271,11 +271,11 @@ select = [
     "I",       # isort
     "UP",      # pyupgrade
     "B",       # flake8-bugbear
-    "C4",      # flake8-comprehensions
+    "C",       # flake8-comprehensions and mccabe complexity
     "T100",    # debugger calls and imports
     "RUF",     # ruff's own
 ]
-extend-safe-fixes = ["UP", "C4"]
+extend-safe-fixes = ["UP", "C"]
 
 [tool.ruff.lint.per-file-ignores]
 # A package's `__init__` re-exports; that is what it is for.
