@@ -45,7 +45,14 @@ absent = [".github/workflows/release.yaml"]
   'version_provider = "scm"',
   'dynamic = ["version"]',
 ]
-"mise.toml" = ['pdm = "latest"', 'uv = "latest"', 'run = "pdm run test"']
+"mise.toml" = [
+  'pdm = "latest"',
+  'uv = "latest"',
+  "[hooks]",
+  "prek install --install-hook-types pre-commit,commit-msg",
+  "[ -f pdm.lock ] && pdm install -dG:all",
+]
+"CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "pdm install -G:all"]
 "prek.toml" = ["pdm lock --check"]
 # CI needs uv on PATH for PDM to resolve through it, and PDM pointed at uv's
 # interpreters so the matrix version is the one actually used.

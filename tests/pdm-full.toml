@@ -54,6 +54,12 @@ absent = [
 ]
 
 [expect.contains]
+"mise.toml" = [
+  "[hooks]",
+  "prek install --install-hook-types pre-commit,commit-msg",
+  "[ -f pdm.lock ] && pdm install -dG:all",
+]
+"CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "pdm install -G:all"]
 "pyproject.toml" = [
   'requires-python = ">=3.11"',
   '"cyclopts',

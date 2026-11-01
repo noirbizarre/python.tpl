@@ -96,7 +96,7 @@ absent = [
   '"lint:actions".shell',
   '"tpl:check".composite',
 ]
-# mise.toml carries tools and nothing else on this stack.
+# mise.toml carries tools and setup hooks on this stack.
 #
 # `git tpl test` has no negative-substring assertion, so "and defines no tasks"
 # cannot be stated here — a delegating `[tasks.test]` would satisfy every
@@ -104,7 +104,14 @@ absent = [
 # invariant is checked structurally instead, by
 # scripts/check-one-task-host.py in the render job, which parses both files and
 # asserts exactly one of them defines tasks. A better check than any substring.
-"mise.toml" = ['pdm = "latest"', "[tools]"]
+"mise.toml" = [
+  'pdm = "latest"',
+  "[tools]",
+  "[hooks]",
+  "prek install --install-hook-types pre-commit,commit-msg",
+  "[ -f pdm.lock ] && pdm install -dG:all",
+]
+"CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "pdm install -G:all"]
 "prek.toml" = ["pdm lock --check", "pdm run cz check"]
 ".github/workflows/ci.yaml" = [
   "pdm install -G test",

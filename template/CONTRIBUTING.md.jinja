@@ -8,13 +8,17 @@ prerequisite is [mise](https://mise.jdx.dev) itself:
 
 ```bash
 mise install
-mise run install
-prek install --install-hook-types pre-commit,commit-msg
 ```
 
-`mise run install` creates `.venv` and installs the project with every
-dependency group. `prek install` wires the hooks — until you run it, nothing
-checks your commits locally and CI is the first thing that will.
+`mise install` wires the prek hooks automatically. When `{% if is_pdm %}pdm.lock{% else %}uv.lock{% endif %}` exists,
+its postinstall hook also installs the project with every dependency group{% if not is_pdm %}
+and all extras, keeping the lockfile unchanged{% endif %}.
+
+A freshly rendered project has no dependency lockfile yet, so create it with:
+
+```bash
+{% if is_pdm %}pdm install -G:all{% else %}mise run install{% endif %}
+```
 
 ## The loop
 {% if is_pdm %}

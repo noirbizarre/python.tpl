@@ -1,5 +1,5 @@
 {% if is_pdm -%}
-# The toolchain, and only the toolchain.
+# The toolchain and automatic setup.
 #
 # There are no tasks in this file. PDM is this project's task host — the tasks
 # are `[tool.pdm.scripts]` in pyproject.toml, and `pdm run --list` shows them.
@@ -8,7 +8,8 @@
 # not: a delegation layer gives every task two names, two places to look when
 # it misbehaves, and two chances to go stale against each other. A project has
 # one task host. Here it is PDM, and mise's job is to put the right pdm, the
-# right Python and the right prek on PATH before it runs.
+# right Python and the right prek on PATH before it runs, and bootstrap the
+# development environment with the postinstall hooks below.
 {%- else -%}
 # The toolchain and the tasks.
 #
@@ -68,6 +69,15 @@ cargo-binstall = "latest"
 # The virtualenv every task runs in, created on first use. This is what makes a
 # bare `pytest` in an interactive shell work without `{% if is_pdm %}pdm{% else %}uv{% endif %} run`.
 _.python.venv = { path = ".venv", create = true }
+
+[hooks]
+# A fresh render has no dependency lockfile yet. Install hooks immediately,
+# but leave the first dependency install to the setup instructions.
+postinstall = [
+  "prek install --install-hook-types pre-commit,commit-msg",
+{% if is_pdm %}  "[ -f pdm.lock ] && pdm install -dG:all",
+{% else %}  "[ -f uv.lock ] && uv sync --locked --all-extras --all-groups",
+{% endif %}]
 {% if is_pdm %}
 # --- project-specific ---------------------------------------------------------
 #

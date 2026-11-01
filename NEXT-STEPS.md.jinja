@@ -9,11 +9,14 @@ to you.
 cd {{ distribution }}
 mise install
 {% if is_pdm %}pdm install -G:all{% else %}mise run install{% endif %}
-prek install --install-hook-types pre-commit,commit-msg
 ```
+
+`mise install` installs the toolchain and wires the prek hooks automatically.
+Its postinstall hook also installs dependencies when `{% if is_pdm %}pdm.lock{% else %}uv.lock{% endif %}` exists;
+on this fresh render, the second command creates that lockfile instead.
 {% if is_pdm %}
 PDM is this project's task host — `pdm run --list` shows the tasks. `mise.toml`
-carries the toolchain and nothing else.
+carries the toolchain and automatic setup hooks.
 {% else %}
 mise is this project's task host — `mise tasks` shows them.
 {% endif %}

@@ -58,7 +58,14 @@ absent = [
 ]
 # The task host is mise on this stack, so the tasks are real rather than
 # delegations, and pyproject has no scripts table.
-"mise.toml" = ["uv run --group test pytest", "uv run --group lint ty check"]
+"mise.toml" = [
+  "uv run --group test pytest",
+  "uv run --group lint ty check",
+  "[hooks]",
+  "prek install --install-hook-types pre-commit,commit-msg",
+  "[ -f uv.lock ] && uv sync --locked --all-extras --all-groups",
+]
+"CONTRIBUTING.md" = ["`mise install` wires the prek hooks automatically.", "mise run install"]
 "prek.toml" = ["uv lock --check", "uv run --group release cz check"]
 ".github/workflows/ci.yaml" = ["uv sync --group test", '"3.12", "3.13", "3.14"']
 # `pep621` means the bump rewrites pyproject, so uv.lock records a version that
