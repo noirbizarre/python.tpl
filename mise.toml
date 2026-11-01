@@ -122,6 +122,10 @@ cd "$out"
 echo "==> Parsing the rendered configuration"
 uv run --no-project --with pyyaml -- python "$MISE_PROJECT_ROOT/scripts/parse-rendered.py"
 
+# Parsing TOML alone cannot catch unsupported hook IDs or invalid prek options.
+echo "==> Validating the rendered prek configuration"
+prek validate-config prek.toml
+
 # One task host, whichever it is. `git tpl test` cannot express this: there is
 # no negative-substring assertion, so a delegating `[tasks.test]` in mise.toml
 # would satisfy every positive assertion the cases make about that file.

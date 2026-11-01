@@ -21,8 +21,8 @@ hooks = [
   { id = "check-toml" },
   { id = "check-yaml" },
   { id = "check-json" },
-  { id = "check-ast" },
-  { id = "debug-statements" },
+  # Ruff below checks Python syntax and debugger statements; neither check is
+  # available as a prek builtin.
   # Python files are excluded because `ruff format` below already owns their
   # final newline, and two hooks rewriting the same bytes is how a pre-commit
   # run ends up needing a second pre-commit run.
