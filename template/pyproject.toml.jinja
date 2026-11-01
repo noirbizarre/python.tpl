@@ -121,7 +121,7 @@ dev = [
 ]
 
 test = [
-    "pytest>=8.3",
+    "pytest>=9.0",
     "pytest-cov>=6.0",
     "pytest-sugar>=1.0",
     "coverage[toml]>=7.6",
@@ -296,8 +296,8 @@ root = ["./src"]
 # Deliberately empty. Every suppression added here should name the rule and say
 # which release of ty made it necessary, so a later upgrade can retire it.
 
-[tool.pytest.ini_options]
-addopts = "-ra"
+[tool.pytest]
+addopts = ["-ra"]
 testpaths = ["tests"]
 norecursedirs = [".git", "build", "dist"{% if docs %}, "site"{% endif %}]
 
