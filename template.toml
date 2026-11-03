@@ -172,7 +172,7 @@ default = false
 type = "string"
 prompt = "Command name"
 help = "Defaults to the lowercase distribution name with separator runs replaced by dashes. Hosts sometimes mandate another."
-when = "cli"
+when = "{{ cli }}"
 default = "{{ distribution | slugify }}"
 pattern = "^[a-z0-9]+(-[a-z0-9]+)*$"
 message = "must be lowercase alphanumeric words separated by single dashes"
@@ -186,7 +186,7 @@ default = true
 [questions.docs_accent]
 type = "choice"
 prompt = "Documentation accent colour"
-when = "docs"
+when = "{{ docs }}"
 choices = ["indigo", "deep orange", "teal", "purple", "cyan", "pink", "amber"]
 default = "indigo"
 
