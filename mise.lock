@@ -143,9 +143,9 @@ specifiers = ["latest"]
 
 [[tools.pdm]]
 version = "2.29.5"
-backend = "pipx:pdm"
+backend = "pypi:pdm"
 specifiers = ["latest"]
-uv = { path = ".mise/locks/pdm/2.29.5", digest = "sha256:50f391f97bb7762a3879c78d44c147e93d6847c06f992240202cf9ba02290c11" }
+uv = { path = ".mise/locks/pdm/2.29.5", digest = "sha256:20126cf09711ee3b497624885a324a5071cdb84c078b931ae79b9c64e1c83854" }
 
 [[tools.prek]]
 version = "0.5.9"
