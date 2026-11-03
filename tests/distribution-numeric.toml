@@ -1,0 +1,13 @@
+# Numeric distribution names need an explicit valid import identifier.
+[answers]
+distribution = "123"
+package = "numeric_example"
+description = "Numeric distribution name"
+author_name = "Axel H."
+author_email = "noirbizarre@gmail.com"
+cli = true
+docs = false
+
+[expect.contains]
+"pyproject.toml" = ['name = "123"', '123 = "numeric_example.cli:app"']
+"src/numeric_example/__init__.py" = ['version("123")']

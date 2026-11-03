@@ -48,21 +48,20 @@ type = "string"
 prompt = "Distribution name"
 help = "What `pip install NAME` takes. Also the GitHub repository name."
 default_from = "{{ remote.name | default(dir.name) | slugify }}"
-# The PEP 503 normalised form, restricted further: no dots, no underscores, no
-# leading or trailing dash. This string becomes a PyPI name, a URL path and the
-# stem of the import name below, and each of those rejects a different subset
-# of what a looser pattern would allow.
-pattern = "^[a-z0-9]+(-[a-z0-9]+)*$"
-message = "must be lowercase alphanumeric words separated by single dashes"
+# PyPA distribution names allow ASCII letters, digits, dots, underscores and
+# dashes, starting and ending with a letter or digit. Preserve the spelling;
+# import-package and command defaults apply their own normalization below.
+pattern = '\A[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\z'
+message = "must contain only ASCII letters, digits, dots, underscores or dashes, starting and ending with a letter or digit"
 
 [questions.package]
 type = "string"
 prompt = "Import package name"
-help = "What `import NAME` takes. Usually the distribution with dashes replaced."
+help = "What `import NAME` takes. Defaults to lowercase with separator runs replaced by underscores."
 # Not computed, because the two legitimately differ: `pdm-dockerize` imports
 # `pdm_dockerize`, but a `gh-`-prefixed distribution rarely wants the prefix in
 # its import name. Seeded from the distribution so the common case is Enter.
-default = "{{ distribution | replace('-', '_') }}"
+default = "{{ distribution | slugify | replace('-', '_') }}"
 # A Python identifier. Namespace packages are deliberately NOT supported: they
 # doubled the conditional surface of the previous attempt for the sake of one
 # project, and a namespace can be added by hand afterwards.
@@ -172,9 +171,9 @@ default = false
 [questions.cli_name]
 type = "string"
 prompt = "Command name"
-help = "Usually the distribution name. Hosts sometimes mandate another."
+help = "Defaults to the lowercase distribution name with separator runs replaced by dashes. Hosts sometimes mandate another."
 when = "cli"
-default = "{{ distribution }}"
+default = "{{ distribution | slugify }}"
 pattern = "^[a-z0-9]+(-[a-z0-9]+)*$"
 message = "must be lowercase alphanumeric words separated by single dashes"
 

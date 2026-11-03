@@ -1,0 +1,28 @@
+# A dotted distribution is distinct from its default import package.
+git = true
+
+[answers]
+distribution = "example.library"
+description = "Dotted distribution name"
+owner = "noirbizarre"
+author_name = "Axel H."
+author_email = "noirbizarre@gmail.com"
+stack = "pdm"
+cli = false
+docs = false
+pypi = false
+codecov = false
+gh_ship = false
+
+[expect.contains]
+"pyproject.toml" = ['name = "example.library"', 'write_to = "example_library/VERSION"']
+"src/example_library/__init__.py" = ['version("example.library")']
+"tests/test_example_library.py" = ["import example_library"]
+
+[commands]
+env = { PDM_IGNORE_ACTIVE_VENV = "1" }
+after = [
+  "pdm install -G:all",
+  "pdm run ci",
+  "pdm build",
+]

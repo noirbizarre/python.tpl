@@ -1,0 +1,11 @@
+[answers]
+distribution = "A"
+description = "Single-character distribution name"
+author_name = "Axel H."
+author_email = "noirbizarre@gmail.com"
+cli = true
+docs = false
+
+[expect.contains]
+"pyproject.toml" = ['name = "A"', 'a = "a.cli:app"']
+"src/a/__init__.py" = ['version("A")']

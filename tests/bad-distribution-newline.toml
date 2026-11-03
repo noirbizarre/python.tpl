@@ -1,0 +1,6 @@
+# An end-of-line anchor must not allow a trailing newline.
+[answers]
+distribution = "example\n"
+
+[expect]
+error = "tpl::eval::pattern_mismatch"

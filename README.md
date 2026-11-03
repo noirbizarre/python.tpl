@@ -110,8 +110,9 @@ mise run test:write             # record snapshots for review
 conditional path segment that renders to a bare extension instead of nothing,
 and a GitHub `${{ }}` expression that escaped a `{% raw %}` block. `git tpl
 test` runs `tests/*.toml`: five successful cases compare their complete rendered
-file sets, contents and modes against committed `tests/__snapshots__/`, and an
-invalid-input case checks its diagnostic code. Each successful case's commands
+file sets, contents and modes against committed `tests/__snapshots__/`. Additional
+cases check distribution-name validation and derived package/command defaults,
+including invalid-input diagnostic codes. Generated-project commands
 install the project and run its Ruff, ty, pytest and optional docs build, plus
 configuration validation and actual prek hooks (including Markdownlint and
 EditorConfig). `mise run render:check <case>` also runs a single case.

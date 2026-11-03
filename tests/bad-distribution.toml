@@ -1,8 +1,6 @@
-# The distribution name is the one answer a rendered project cannot recover
-# from: it reaches PyPI, the repository URL, the `origin` remote and — through
-# the `package` default — the import name. Every one of those rejects a
-# different subset of what a permissive pattern would allow, so the pattern is
-# the strictest of them and it is worth a case of its own.
+# Distribution names follow the PyPA name format, independently of the import
+# package and command names. Spaces are invalid even though dots, underscores,
+# uppercase letters and repeated separators are allowed.
 #
 # Asserted by diagnostic code, never by message. Pinning prose is how error
 # messages stop improving.

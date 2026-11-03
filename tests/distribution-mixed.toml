@@ -1,0 +1,29 @@
+# Mixed separator runs and uppercase are valid; defaults normalize independently.
+git = true
+
+[answers]
+distribution = "Example.-_..LIBRARY--Name"
+description = "Mixed distribution name"
+owner = "noirbizarre"
+author_name = "Axel H."
+author_email = "noirbizarre@gmail.com"
+stack = "uv"
+cli = true
+docs = false
+pypi = false
+codecov = false
+gh_ship = false
+
+[expect.contains]
+"pyproject.toml" = ['name = "Example.-_..LIBRARY--Name"', 'module-name = "example_library_name"', 'example-library-name = "example_library_name.cli:app"']
+"src/example_library_name/__init__.py" = ['version("Example.-_..LIBRARY--Name")']
+"tests/test_example_library_name.py" = ["import example_library_name"]
+
+[commands]
+after = [
+  "mise trust ./mise.toml",
+  "mise run install",
+  "mise run ci",
+  "uv build",
+  "uv run example-library-name --version",
+]

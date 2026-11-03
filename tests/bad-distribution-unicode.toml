@@ -1,0 +1,5 @@
+[answers]
+distribution = "éxample"
+
+[expect]
+error = "tpl::eval::pattern_mismatch"
