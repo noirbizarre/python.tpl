@@ -34,39 +34,8 @@ jobs:
           cache: true
           reshim: true
 
-      - name: Install
-        # Type checking needs the project and test dependencies, even when the
-        # checker itself is installed by an upstream hook.
-        run: uv sync --all-groups
-
-      # The hooks themselves, not a parallel set of checks that happens to
-      # agree with them. This is the same command a developer's `git commit`
-      # runs, so a green run here means the hooks actually pass — and a hook
-      # that only ever runs locally is a hook that has already rotted.
-      - name: Run the hooks
-        run: prek run --all-files --show-diff-on-failure
-
-  typecheck:
-    name: 🔎 Types
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: jdx/mise-action@v5
-        with:
-          cache: true
-          reshim: true
-
-      - name: Install
-        run: uv sync --group lint
-
-      # `ty` runs against the minimum supported Python (3.11),
-      # declared once in `[tool.ty.environment]`. Checking against the newest is
-      # how a 3.15-only construct reaches a package that claims
-      # 3.11 — the matrix below runs the tests on 3.11,
-      # but a test suite only exercises the code paths it happens to reach.
-      - name: Type-check
-        run: mise run typecheck
+      # Run the same hooks as a developer's `git commit`, including ty.
+      - uses: j178/prek-action@v3.1.0
 
   test:
     name: 🧪 Tests (Python ${{ matrix.python }})
