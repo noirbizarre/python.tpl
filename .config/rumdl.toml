@@ -1,0 +1,33 @@
+[global]
+# Allow GitHub-style lists and documentation-site admonitions/fragments.
+disable = [
+    # Lists should be surrounded by blank lines.
+    # https://rumdl.dev/md032/
+    "MD032",
+    # No spaces inside code spans.
+    # https://rumdl.dev/md038/
+    "MD038",
+    # Code block style should be consistent.
+    # https://rumdl.dev/md046/
+    "MD046",
+    # Link fragments should be valid heading IDs.
+    # https://rumdl.dev/md051/
+    "MD051",
+]
+
+# Unordered list marker style.
+# https://rumdl.dev/md004/
+[MD004]
+style = "dash"
+
+# Python-Markdown requires four spaces for nested lists.
+# https://rumdl.dev/md007/
+[MD007]
+indent = 4
+
+# Maximum line length.
+# https://rumdl.dev/md013/
+[MD013]
+line-length = 120
+tables = false
+code-blocks = false

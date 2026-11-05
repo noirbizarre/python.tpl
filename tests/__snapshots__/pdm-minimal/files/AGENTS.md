@@ -48,10 +48,9 @@ src/minimal_example/       the package
 tests/                   pytest, mirroring src/
 .github/workflows/       CI and release
 mise.toml                the toolchain — no tasks, by design
-pyproject.toml           the package, and the tasks
+pyproject.toml           the package, tool configuration, and the tasks
 prek.toml                the hooks — builtins and official upstream repositories
 .editorconfig            shared editor and whitespace conventions
-.markdownlint-cli2.yaml   Markdown rules and output formatting
 ```
 
 ## Do not

@@ -144,6 +144,40 @@ extend-safe-fixes = ["UP", "C"]
 known-first-party = ["uv_full_example"]
 lines-between-types = 1
 
+[tool.rumdl]
+# Allow GitHub-style lists and documentation-site admonitions/fragments.
+disable = [
+    # Lists should be surrounded by blank lines.
+    # https://rumdl.dev/md032/
+    "MD032",
+    # No spaces inside code spans.
+    # https://rumdl.dev/md038/
+    "MD038",
+    # Code block style should be consistent.
+    # https://rumdl.dev/md046/
+    "MD046",
+    # Link fragments should be valid heading IDs.
+    # https://rumdl.dev/md051/
+    "MD051",
+]
+
+# Unordered list marker style.
+# https://rumdl.dev/md004/
+[tool.rumdl.MD004]
+style = "dash"
+
+# Python-Markdown requires four spaces for nested lists.
+# https://rumdl.dev/md007/
+[tool.rumdl.MD007]
+indent = 4
+
+# Maximum line length.
+# https://rumdl.dev/md013/
+[tool.rumdl.MD013]
+line-length = 120
+tables = false
+code-blocks = false
+
 [tool.ty.environment]
 # The floor, not the newest. Type-checking against the oldest supported version
 # is what catches a 3.15-only construct slipping into a package that

@@ -50,10 +50,9 @@ tests/                   pytest, mirroring src/
 docs/                    the documentation site (zensical.toml drives the nav)
 .github/workflows/       CI and release
 mise.toml                the toolchain and the tasks
-pyproject.toml           the package
+pyproject.toml           the package, tool configuration
 prek.toml                the hooks — builtins and official upstream repositories
 .editorconfig            shared editor and whitespace conventions
-.markdownlint-cli2.yaml   Markdown rules and output formatting
 ```
 
 ## Do not

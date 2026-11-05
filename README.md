@@ -33,7 +33,7 @@ git tpl init https://github.com/noirbizarre/python.tpl my-project
 | Types | [ty](https://github.com/astral-sh/ty) |
 | Spelling | [typos](https://github.com/crate-ci/typos) |
 | File style | EditorConfig and editorconfig-checker |
-| Markdown | markdownlint-cli2 with its pretty output formatter |
+| Markdown | [rumdl](https://github.com/rvben/rumdl) |
 | Tests | pytest, coverage, `src/` layout |
 | Commits & changelog | commitizen with [emotional](https://github.com/noirbizarre/emotional) |
 | CI | GitHub Actions: lint, types, a Python matrix |
@@ -44,8 +44,9 @@ CI and the license are not optional. Everything else is a question.
 Hooks prefer prek builtins and official upstream repositories. Local hooks are
 reserved for project-specific commands without a suitable upstream hook. Update
 Ruff and ty hook revisions together with their dependency minimums so hooks and
-project tasks use the same baseline. `.editorconfig` and `.markdownlint-cli2.yaml`
-provide shared file-style rules in both this repository and generated projects.
+project tasks use the same baseline. `.editorconfig` provides shared file-style
+rules. Markdown rules live in `.config/rumdl.toml` for this repository and
+`[tool.rumdl]` in `pyproject.toml` for generated projects.
 
 ## The three stacks
 
@@ -114,7 +115,7 @@ file sets, contents and modes against committed `tests/__snapshots__/`. Addition
 cases check distribution-name validation and derived package/command defaults,
 including invalid-input diagnostic codes. Generated-project commands
 install the project and run its Ruff, ty, pytest and optional docs build, plus
-configuration validation and actual prek hooks (including Markdownlint and
+configuration validation and actual prek hooks (including rumdl and
 EditorConfig). `mise run render:check <case>` also runs a single case.
 
 After an intentional template change, run `mise run test:write`, review the

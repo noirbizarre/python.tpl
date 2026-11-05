@@ -66,10 +66,9 @@ tests/                   pytest, mirroring src/
 {% if docs %}docs/                    the documentation site (zensical.toml drives the nav)
 {% endif %}.github/workflows/       CI and release
 mise.toml                the toolchain{% if is_pdm %} — no tasks, by design{% else %} and the tasks{% endif %}
-pyproject.toml           the package{% if is_pdm %}, and the tasks{% endif %}
+pyproject.toml           the package, tool configuration{% if is_pdm %}, and the tasks{% endif %}
 prek.toml                the hooks — builtins and official upstream repositories
 .editorconfig            shared editor and whitespace conventions
-.markdownlint-cli2.yaml   Markdown rules and output formatting
 ```
 
 ## Do not

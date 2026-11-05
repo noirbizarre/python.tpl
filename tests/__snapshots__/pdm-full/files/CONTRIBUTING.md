@@ -45,8 +45,8 @@ only for project-specific checks without an appropriate upstream hook. Run all
 hooks with `pdm run hooks`.
 
 `.editorconfig` shares whitespace conventions with editors; its checker leaves
-Python to Ruff and Markdown to markdownlint-cli2. Markdown rules and the pretty
-output formatter are configured in `.markdownlint-cli2.yaml`.
+Python to Ruff and Markdown to rumdl. Markdown rules are configured in
+the `[tool.rumdl]` section of `pyproject.toml`.
 
 When updating hook revisions with `prek auto-update`, update the Ruff and ty
 minimum versions in `pyproject.toml` alongside them, and run the hooks and CI
