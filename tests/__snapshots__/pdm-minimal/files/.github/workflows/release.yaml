@@ -51,7 +51,7 @@ jobs:
       # Without it a dispatch can tag a broken main, and there is no undoing a
       # published version.
       - name: Require a green CI
-        uses: noirbizarre/need-checks@0.1
+        uses: noirbizarre/need-checks@v0.1
         with:
           token: ${{ secrets.PAT }}
           workflow: ci.yaml
@@ -76,7 +76,7 @@ jobs:
       # changelog is the same one the commit-msg hook validates against, and
       # the action installs commitizen into an environment of its own.
       - name: Bump using commitizen
-        uses: commitizen-tools/commitizen-action@0.24.0
+        uses: commitizen-tools/commitizen-action@0.27.1
         with:
           github_token: ${{ secrets.PAT }}
           changelog_increment_filename: body.md

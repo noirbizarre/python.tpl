@@ -61,7 +61,7 @@ jobs:
       # uv and needs it on PATH. `setup-uv` also points PDM at uv's interpreter
       # directory, so the matrix version is the one PDM actually uses rather
       # than one it downloads again.
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
 
