@@ -43,6 +43,9 @@ after = [
   "test -x .git/hooks/commit-msg",
   "pdm install -G:all",
   "pdm run ci",
+  # Both release stacks must preserve generator-owned changelog bytes.
+  "python -c \"from pathlib import Path; Path('CHANGELOG.md').write_bytes(b'## 0.2.0\\n\\nhttps://github.com/noirbizarre/python.tpl\\n\\n')\"",
   "git add --all",
   "prek run --all-files --show-diff-on-failure",
+  "python -c \"from pathlib import Path; assert Path('CHANGELOG.md').read_bytes() == b'## 0.2.0\\n\\nhttps://github.com/noirbizarre/python.tpl\\n\\n'\"",
 ]

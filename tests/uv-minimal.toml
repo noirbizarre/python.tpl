@@ -42,6 +42,11 @@ after = [
   "mise trust ./mise.toml",
   "mise run install",
   "mise run ci",
+  # Reproduce generated release notes rejected by rumdl and rewritten by EOF fixing.
+  "python -c \"from pathlib import Path; Path('CHANGELOG.md').write_bytes(b'## 0.2.0\\n\\nhttps://github.com/noirbizarre/python.tpl\\n\\n')\"",
   "git add --all",
   "mise run hooks",
+  "python -c \"from pathlib import Path; assert Path('CHANGELOG.md').read_bytes() == b'## 0.2.0\\n\\nhttps://github.com/noirbizarre/python.tpl\\n\\n'\"",
+  # Ordinary Markdown must still be checked, including the same heading rule.
+  "python -c \"from pathlib import Path; import subprocess; p = Path('hook-probe.md'); p.write_text('## Invalid first heading\\n'); result = subprocess.run(['prek', 'run', 'rumdl-check', '--files', str(p)], capture_output=True, text=True); p.unlink(); assert result.returncode == 1 and 'MD041' in result.stdout + result.stderr, result\"",
 ]
