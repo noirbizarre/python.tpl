@@ -37,6 +37,16 @@ jobs:
       # Run the same hooks as a developer's `git commit`, including ty.
       - uses: j178/prek-action@v3.1.0
 
+      - name: Install gh-ship
+        run: gh extension install noirbizarre/gh-ship
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Validate the release setup
+        run: gh ship validate
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   test:
     name: 🧪 Tests (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
@@ -83,23 +93,3 @@ jobs:
           flags: py${{ matrix.python }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  # gh-ship runs the release, and it enforces a contract between .github/ship.yml
-  # and the workflows that file names. Finding out mid-release that the contract
-  # is broken is the worst possible moment, so it is checked on every pull
-  # request instead. It needs no secrets: `validate` reads the repository.
-  ship:
-    name: 🚢 Ship setup
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install gh-ship
-        run: gh extension install noirbizarre/gh-ship
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Validate the release setup
-        run: gh ship validate
-        env:
-          GH_TOKEN: ${{ github.token }}
