@@ -1,0 +1,65 @@
+{%- if gh_ship_token_mode is defined %}
+{%- raw %}name: 🚢 Ship
+
+# gh ship run routes pushes to preparation and merged Release PRs to
+# publication. Unrelated closed PRs skip successfully.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+# Merging fires both triggers. Serialize them so the pending-release guard
+# stops preparation until publication finishes, regardless of event order.
+# Never cancel: that would orphan the dispatched prepare or publish run.
+concurrency:
+  group: ship
+  cancel-in-progress: false
+
+jobs:
+  ship:
+    name: 🚢 Ship
+    # Public forks do not have the release credentials this job requires.
+{%- endraw %}
+    if: github.repository_owner == '{{ owner }}'
+{%- if gh_ship_token_mode == 'token' %}
+    permissions:
+      contents: write
+      actions: write
+      pull-requests: write
+      issues: write
+{%- endif %}
+    runs-on: ubuntu-latest
+    # Leave orchestration headroom beyond the two-hour workflow wait.
+    timeout-minutes: 150
+
+    environment:
+      name: release
+      deployment: false
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install gh-ship
+        run: gh extension install noirbizarre/gh-ship
+        env:
+          GH_TOKEN: {% raw %}${{ github.token }}{% endraw %}
+
+      - name: Ship the release
+        run: gh ship run
+        env:
+{%- if gh_ship_token_mode == 'app' %}
+          # Only gh-ship needs the private key to mint and refresh tokens.
+          SHIP_APP_CLIENT_ID: {% raw %}${{ vars.APP_CLIENT_ID }}{% endraw %}
+          SHIP_APP_PRIVATE_KEY: {% raw %}${{ secrets.APP_PRIVATE_KEY }}{% endraw %}
+{%- else %}
+          GH_TOKEN: {% raw %}${{ secrets.SHIP_TOKEN || github.token }}{% endraw %}
+{%- endif %}
+          SHIP_RUN_TIMEOUT: 7200
+{%- endif %}

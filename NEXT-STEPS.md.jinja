@@ -35,16 +35,30 @@ git push -u origin main
 {% if gh_ship %}
 ## 3. Configure the release
 
-The gh-ship flow needs three things GitHub cannot infer:
+Configure the gh-ship flow on GitHub:
 
+{% if gh_ship_token_mode is defined and gh_ship_token_mode == 'app' %}
 - **A GitHub App** with `contents: write`, `pull-requests: write` and
   `actions: write`, installed on this repository. Put its client id in the
   `release` environment as the variable `APP_CLIENT_ID` and its private key as
   the secret `APP_PRIVATE_KEY`.
+  gh-ship mints and refreshes tokens itself in the single `ship` job; the
+  dispatched workflows mint their own App tokens for pushes and asset uploads.
+{% else %}
+- **Token authentication**, without a GitHub App. Workflows use a `SHIP_TOKEN`
+  secret from the `release` environment when present, otherwise their default
+  GitHub token. To use a fine-grained PAT, grant repository `contents`,
+  `actions`, `pull-requests` and `issues` read/write permissions. A classic PAT
+  needs `repo` and `workflow` scopes.
+  Use a PAT when Release PRs and release-branch pushes must trigger CI:
+  GitHub's default token does not trigger those runs. When using the default
+  token, enable **Allow GitHub Actions to create and approve pull requests**
+  under Settings → Actions → General. Organization policy must allow it too.
+{% endif %}
 - **Squash-merge settings**: `Default commit message` → `Pull request title`,
   with a blank body. The Release PR's title is a Conventional Commit and the
   `commit-msg` hook checks it; a default GitHub squash message is not one.
-- **A `release` environment**, which is where both of the above live.
+- **A `release` environment**, which holds the release credentials.
 {% if pypi %}
 ## 4. Configure PyPI
 

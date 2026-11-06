@@ -1,3 +1,4 @@
+{%- if gh_ship_token_mode is defined %}
 {%- raw %}name: 🚀 Prepare Release
 {%- endraw %}
 
@@ -29,8 +30,7 @@ on:
         type: boolean
         default: false
 
-# Every API call here authenticates as the GitHub App, whose installation
-# permissions apply instead of these. These cover `actions/checkout` alone.
+# Jobs grant additional permissions only when using the default GitHub token.
 permissions:
   contents: read
 
@@ -44,16 +44,23 @@ env:
 jobs:
   prepare:
     name: 🚀 Prepare
+{%- endraw %}
+{%- if gh_ship_token_mode == 'token' %}
+    permissions:
+      contents: write
+{%- endif %}
+{%- raw %}
     runs-on: ubuntu-latest
-    # APP_CLIENT_ID and APP_PRIVATE_KEY live only in this environment, and an
-    # environment variable resolves only in a job that declares one — so this
-    # key is load-bearing for authentication, not merely for gating. Preparing
-    # a release is not a deployment; 📦 Publish Release is.
+    # Release credentials live in this environment. Preparation is not a
+    # deployment; 📦 Publish Release is.
     environment:
       name: release
       deployment: false
 
     steps:
+{%- endraw %}
+{%- if gh_ship_token_mode == 'app' %}
+{%- raw %}
       # The push below must trigger ♻️ CI on the release branch, which the
       # default GITHUB_TOKEN cannot do. An App installation token can, and it
       # is revoked when this job ends.
@@ -68,6 +75,9 @@ jobs:
         run: echo "id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+{%- endraw %}
+{%- endif %}
+{%- raw %}
 
       - uses: actions/checkout@v7
         with:
@@ -75,7 +85,13 @@ jobs:
           # the commits since the last tag, and a shallow clone has neither.
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ steps.app-token.outputs.token }}
+{%- endraw %}
+{%- if gh_ship_token_mode == 'app' %}
+          token: {% raw %}${{ steps.app-token.outputs.token }}{% endraw %}
+{%- else %}
+          token: {% raw %}${{ secrets.SHIP_TOKEN || github.token }}{% endraw %}
+{%- endif %}
+{%- raw %}
 
       - uses: jdx/mise-action@v5
         with:
@@ -153,12 +169,19 @@ jobs:
       - name: Commit and push
         if: {% raw %}${{ steps.version.outputs.changed == 'true' && !inputs.dry_run }}{% endraw %}
         env:
+{%- if gh_ship_token_mode == 'app' %}
           APP_SLUG: {% raw %}${{ steps.app-token.outputs.app-slug }}{% endraw %}
           BOT_ID: {% raw %}${{ steps.bot.outputs.id }}{% endraw %}
+{%- endif %}
           VERSION: {% raw %}${{ steps.version.outputs.version }}{% endraw %}
         run: |
+{%- if gh_ship_token_mode == 'app' %}
           git config user.name "${APP_SLUG}[bot]"
           git config user.email "${BOT_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+{%- else %}
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+{%- endif %}
 
           git add -A
           # `chore(release): X` is deliberate, and load-bearing twice over. See
@@ -201,7 +224,11 @@ jobs:
 
       - name: Validate the release artifact
         env:
+{%- if gh_ship_token_mode == 'app' %}
           GH_TOKEN: {% raw %}${{ steps.app-token.outputs.token }}{% endraw %}
+{%- else %}
+          GH_TOKEN: {% raw %}${{ secrets.SHIP_TOKEN || github.token }}{% endraw %}
+{%- endif %}
         run: |
           gh extension install noirbizarre/gh-ship
           gh ship validate ship.release.json
@@ -213,3 +240,4 @@ jobs:
           path: ship.release.json
           if-no-files-found: error
 {%- endraw %}
+{%- endif %}

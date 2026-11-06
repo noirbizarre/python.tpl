@@ -21,14 +21,22 @@ docs_accent = "indigo"
 pypi = true
 codecov = true
 gh_ship = true
+gh_ship_token_mode = "token"
 
 [expect.contains]
+".github/workflows/ship.yaml" = ["  ship:", "gh ship run", "secrets.SHIP_TOKEN || github.token", "actions: write", "pull-requests: write", "issues: write", "SHIP_RUN_TIMEOUT: 7200", "timeout-minutes: 150", "persist-credentials: false", "if: github.repository_owner == 'noirbizarre'"]
+".github/workflows/prepare-release.yaml" = ["secrets.SHIP_TOKEN || github.token", "contents: write", "41898282+github-actions[bot]@users.noreply.github.com"]
+".github/workflows/publish-release.yaml" = ["secrets.SHIP_TOKEN || github.token", "contents: write"]
+"CONTRIBUTING.md" = ["No GitHub App is required", "default\ntoken does not trigger those runs"]
 "pdm.toml" = ["use_uv = true"]
 "pyproject.toml" = ['build-backend = "pdm.backend"', "[tool.pdm.scripts]", 'version_provider = "scm"']
 ".github/workflows/ci.yaml" = ["pdm config python.install_root"]
 ".github/workflows/docs.yaml" = ["  pull_request:", "pdm install -G docs", "pdm run docs:build", "        if: github.event_name != 'pull_request'", "    if: github.event_name != 'pull_request'", "format('pages-pr-{0}', github.event.number)", "    permissions:\n      pages: write\n      id-token: write"]
 
 [expect.lacks]
+".github/workflows/ship.yaml" = ["gh ship prepare", "gh ship release", "  prepare:", "  release:", "actions/create-github-app-token", "APP_CLIENT_ID", "APP_PRIVATE_KEY", "steps.app-token"]
+".github/workflows/prepare-release.yaml" = ["actions/create-github-app-token", "APP_CLIENT_ID", "APP_PRIVATE_KEY", "steps.app-token", "steps.bot", "APP_SLUG", "BOT_ID"]
+".github/workflows/publish-release.yaml" = ["actions/create-github-app-token", "APP_CLIENT_ID", "APP_PRIVATE_KEY", "steps.app-token"]
 "mise.toml" = ["[tasks"]
 
 [commands]

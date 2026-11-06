@@ -63,6 +63,8 @@ jobs:
 
   assets:
     name: 🚀 Attach the assets
+    permissions:
+      contents: write
     needs: build
     runs-on: ubuntu-latest
     # This is the deployment. `url:` registers it in the repository's
@@ -71,11 +73,6 @@ jobs:
       name: release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}
     steps:
-      - uses: actions/create-github-app-token@v3
-        id: app-token
-        with:
-          client-id: ${{ vars.APP_CLIENT_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - uses: actions/download-artifact@v8
         with:
@@ -85,7 +82,7 @@ jobs:
       - name: Upload to the draft release
         run: gh release upload "${{ inputs.tag }}" dist/* --clobber
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.SHIP_TOKEN || github.token }}
           GH_REPO: ${{ github.repository }}
 
   pypi:

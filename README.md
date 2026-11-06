@@ -94,6 +94,15 @@ toggling a flag inside one:
 
 Commitizen and `emotional` are common to both. Only the orchestration differs.
 
+With `gh_ship` enabled, a single `ship` job runs `gh ship run` to route pushes
+and merged Release PRs. `gh_ship_token_mode` selects authentication:
+
+- **`app`** (default) — gh-ship mints and refreshes GitHub App tokens itself.
+  The dispatched prepare/publish workflows mint their own App tokens where needed.
+- **`token`** — use the optional `SHIP_TOKEN` PAT, falling back to the workflow's
+  GitHub token. No App is required. Use a PAT if Release PRs and release-branch
+  pushes must trigger CI; GitHub's default token does not trigger those runs.
+
 ## Verification
 
 Lint validates the template; tests verify its complete output and exercise the
