@@ -1,3 +1,4 @@
+{%- if gh_ship_token_mode is defined %}
 {%- raw %}name: 📦 Publish Release
 
 # Dispatched by `gh ship release` once it has tagged the merge commit and
@@ -73,6 +74,12 @@ jobs:
 
   assets:
     name: 🚀 Attach the assets
+{%- endraw %}
+{%- if gh_ship_token_mode == 'token' %}
+    permissions:
+      contents: write
+{%- endif %}
+{%- raw %}
     needs: build
     runs-on: ubuntu-latest
     # This is the deployment. `url:` registers it in the repository's
@@ -81,11 +88,17 @@ jobs:
       name: release
       url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ inputs.tag }}
     steps:
+{%- endraw %}
+{%- if gh_ship_token_mode == 'app' %}
+{%- raw %}
       - uses: actions/create-github-app-token@v3
         id: app-token
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+{%- endraw %}
+{%- endif %}
+{%- raw %}
 
       - uses: actions/download-artifact@v8
         with:
@@ -95,7 +108,13 @@ jobs:
       - name: Upload to the draft release
         run: gh release upload "${{ inputs.tag }}" dist/* --clobber
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+{%- endraw %}
+{%- if gh_ship_token_mode == 'app' %}
+          GH_TOKEN: {% raw %}${{ steps.app-token.outputs.token }}{% endraw %}
+{%- else %}
+          GH_TOKEN: {% raw %}${{ secrets.SHIP_TOKEN || github.token }}{% endraw %}
+{%- endif %}
+{%- raw %}
           GH_REPO: ${{ github.repository }}
 {%- endraw %}
 {%- if pypi %}
@@ -124,4 +143,5 @@ jobs:
           path: dist
 
       - uses: pypa/gh-action-pypi-publish@release/v1
+{%- endif %}
 {%- endif %}

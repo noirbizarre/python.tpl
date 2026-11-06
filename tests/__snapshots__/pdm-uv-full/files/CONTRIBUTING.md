@@ -100,6 +100,14 @@ the changelog. Review it and merge — the rest is automatic: the merge commit i
 tagged, the release is drafted, the artifacts are attached, the
 distribution is published to PyPI, and the release is made public.
 
+The single `ship` job runs `gh ship run`, which routes pushes to preparation
+and merged Release PRs to publication; unrelated closed PRs skip successfully.
+
+Release workflows use `SHIP_TOKEN` when configured in the `release` environment,
+otherwise the job's GitHub token. No GitHub App is required. A PAT is needed
+if Release PRs and release-branch pushes must trigger CI; GitHub's default
+token does not trigger those runs.
+
 Do not push to `release/next` by hand; it is moved on every prepare and
 anything else on it is discarded.
 

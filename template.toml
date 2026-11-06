@@ -223,6 +223,14 @@ prompt = "Use the gh-ship Release PR flow?"
 help = "No means a manually dispatched release.yaml driven by commitizen-action."
 default = true
 
+[questions.gh_ship_token_mode]
+type = "choice"
+prompt = "How should gh-ship authenticate?"
+help = "app: gh-ship mints and refreshes GitHub App tokens. token: use a SHIP_TOKEN PAT or the workflow's GitHub token, without an App."
+when = "{{ gh_ship }}"
+choices = ["app", "token"]
+default = "app"
+
 # --- Data -------------------------------------------------------------------
 
 # The supported-Python catalogue. Static, and it has to be: rendering reads no

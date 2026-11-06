@@ -94,6 +94,12 @@ updates a Release PR titled `chore(release): X` containing the version bump and
 the changelog. Review it and merge — the rest is automatic: the merge commit is
 tagged, the release is drafted, the artifacts are attached, and the release is made public.
 
+The single `ship` job runs `gh ship run`, which routes pushes to preparation
+and merged Release PRs to publication; unrelated closed PRs skip successfully.
+
+gh-ship mints and refreshes its own GitHub App tokens. The dispatched workflows
+mint separate App tokens for checkout pushes and asset uploads.
+
 Do not push to `release/next` by hand; it is moved on every prepare and
 anything else on it is discarded.
 

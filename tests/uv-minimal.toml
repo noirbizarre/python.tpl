@@ -19,17 +19,20 @@ docs = false
 pypi = false
 codecov = false
 gh_ship = true
+gh_ship_token_mode = "app"
 
 [expect]
 absent = [".github/workflows/release.yaml", ".github/workflows/docs.yaml", "pdm.toml", "zensical.toml"]
 
 [expect.contains]
+".github/workflows/ship.yaml" = ["gh ship run", "SHIP_APP_CLIENT_ID:", "SHIP_APP_PRIVATE_KEY:", "SHIP_RUN_TIMEOUT: 7200", "timeout-minutes: 150"]
 "pyproject.toml" = ['build-backend = "uv_build"', 'version = "0.1.0"', 'version_provider = "pep621"']
 "mise.toml" = ["uv run --group test pytest"]
 # A static-version release must refresh the lockfile after bumping.
 ".github/workflows/prepare-release.yaml" = ["uv lock", "--files-only"]
 
 [expect.lacks]
+".github/workflows/ship.yaml" = ["actions/create-github-app-token", "secrets.SHIP_TOKEN", "gh ship prepare", "gh ship release"]
 "pyproject.toml" = ["[tool.pdm.scripts]", 'dynamic = ["version"]']
 ".github/workflows/publish-release.yaml" = ["gh-action-pypi-publish"]
 
